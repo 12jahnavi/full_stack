@@ -1,0 +1,258 @@
+{
+  "entities": {
+    "Citizen": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Citizen",
+      "type": "object",
+      "description": "Represents a citizen user in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Citizen entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the citizen."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the citizen."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the citizen.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the citizen."
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the citizen."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "phone"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator user in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Admin entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the admin."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the admin."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the admin.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email"
+      ]
+    },
+    "Complaint": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Complaint",
+      "type": "object",
+      "description": "Represents a complaint submitted by a citizen.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Complaint entity."
+        },
+        "citizenId": {
+          "type": "string",
+          "description": "Reference to Citizen. (Relationship: Citizen 1:N Complaint)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the complaint."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the complaint (e.g., road, water, electricity)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the complaint."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location/address of the complaint."
+        },
+        "priority": {
+          "type": "string",
+          "description": "Priority level of the complaint (low, medium, high)."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date the complaint was submitted.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the complaint (Pending, In Progress, Resolved, Rejected)."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image uploaded for the complaint (optional).",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "citizenId",
+        "title",
+        "category",
+        "description",
+        "location",
+        "priority",
+        "date",
+        "status"
+      ]
+    },
+    "Feedback": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Feedback",
+      "type": "object",
+      "description": "Represents feedback submitted by a citizen for a complaint.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Feedback entity."
+        },
+        "citizenId": {
+          "type": "string",
+          "description": "Reference to Citizen. (Relationship: Citizen 1:N Feedback)"
+        },
+        "complaintId": {
+          "type": "string",
+          "description": "Reference to Complaint. (Relationship: Complaint 1:N Feedback)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Rating given by the citizen (1-5)."
+        },
+        "comments": {
+          "type": "string",
+          "description": "Comments provided by the citizen."
+        },
+        "sentimentScore": {
+          "type": "number",
+          "description": "Sentiment score of the feedback comments, calculated by the AI Sentiment Analyzer.  Ranges from -1 (negative) to 1 (positive)."
+        }
+      },
+      "required": [
+        "id",
+        "citizenId",
+        "complaintId",
+        "rating",
+        "comments"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/citizens/{citizenId}",
+        "definition": {
+          "entityName": "Citizen",
+          "schema": {
+            "$ref": "#/backend/entities/Citizen"
+          },
+          "description": "Stores citizen user profiles. The 'citizenId' is the Firebase Authentication UID. The document ID is equal to the Firebase Auth UID.",
+          "params": [
+            {
+              "name": "citizenId",
+              "description": "The Firebase Auth UID of the citizen."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{adminId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Stores administrator user profiles. The 'adminId' is the Firebase Authentication UID. The document ID is equal to the Firebase Auth UID.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The Firebase Auth UID of the admin."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/citizens/{citizenId}/complaints/{complaintId}",
+        "definition": {
+          "entityName": "Complaint",
+          "schema": {
+            "$ref": "#/backend/entities/Complaint"
+          },
+          "description": "Stores complaints submitted by citizens. The 'citizenId' in the path matches the 'citizenId' property within the complaint document, enforcing ownership.",
+          "params": [
+            {
+              "name": "citizenId",
+              "description": "The Firebase Auth UID of the citizen who submitted the complaint."
+            },
+            {
+              "name": "complaintId",
+              "description": "The unique identifier of the complaint."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/citizens/{citizenId}/feedback/{feedbackId}",
+        "definition": {
+          "entityName": "Feedback",
+          "schema": {
+            "$ref": "#/backend/entities/Feedback"
+          },
+          "description": "Stores feedback submitted by citizens for specific complaints. The 'citizenId' in the path matches the 'citizenId' property within the feedback document, enforcing ownership.",
+          "params": [
+            {
+              "name": "citizenId",
+              "description": "The Firebase Auth UID of the citizen who submitted the feedback."
+            },
+            {
+              "name": "feedbackId",
+              "description": "The unique identifier of the feedback."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to provide a secure, scalable, and maintainable system for managing citizen complaints and feedback. The structure prioritizes authorization independence and clarity, adhering to the core design principles.  User data (Citizens and Admins) is stored in dedicated collections (`citizens` and `admins`) with path-based ownership for citizen-related data (complaints and feedback). This approach avoids hierarchical `get()` calls in security rules, enabling atomic operations and easier debugging.\n\nAuthorization Independence is achieved by avoiding hierarchical authorization dependencies. For example, the `complaints` subcollection under each `citizen` includes the `citizenId`. This denormalization allows us to check the complaint ownership directly without needing to `get()` the parent citizen document in the security rules.\n\nThe structure supports the required QAPs by using structural segregation and path-based ownership:\n\n*   **Path-Based Ownership:**  Complaints and Feedback are stored as subcollections under the respective Citizen document (`/citizens/{citizenId}/complaints/{complaintId}` and `/citizens/{citizenId}/feedback/{feedbackId}`).  This allows for simple security rules based on the `citizenId` path parameter.\n*   **Structural Segregation:** Citizen and Admin data are stored in separate top-level collections. This allows for distinct security rules tailored to each role.\n*   **Collection Groups**:  The use of collection groups is intentionally avoided in favor of explicit path-based rules.  If needed in the future for reporting, collection groups could be added, but the existing path structure should remain the primary means of enforcement."
+  }
+}
