@@ -3,19 +3,24 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeAdminApp } from '@/firebase/admin';
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  getAuth as getClientAuth,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 import { analyzeCitizenFeedbackSentiment as analyzeSentimentFlow } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 import type { AnalyzeCitizenFeedbackSentimentOutput } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 import type { Complaint } from './definitions';
 
-const { auth, firestore } = initializeFirebase();
+const { auth: clientAuth } = initializeFirebase();
+const adminApp = initializeAdminApp();
+const adminAuth = getAuth(adminApp);
+const adminDb = getFirestore(adminApp);
 
 const SignUpSchema = z
   .object({
@@ -58,29 +63,33 @@ export async function signup(prevState: SignUpState, formData: FormData) {
   const { email, password, firstName, lastName } = validatedFields.data;
 
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
+    const userRecord = await adminAuth.createUser({
       email,
-      password
-    );
-    const user = userCredential.user;
+      password,
+      displayName: `${firstName} ${lastName}`,
+    });
 
-    await setDoc(doc(firestore, 'citizens', user.uid), {
-      id: user.uid,
+    await adminDb.collection('citizens').doc(userRecord.uid).set({
+      id: userRecord.uid,
       firstName,
       lastName,
       email,
       phone: '',
       address: '',
     });
+    
+    // We need to sign the user in on the client after they are created on the server
   } catch (error: any) {
-    if (error.code === 'auth/email-already-in-use') {
+    if (error.code === 'auth/email-already-exists') {
       return { message: 'This email is already in use.' };
     }
     return { message: 'Something went wrong. Please try again.' };
   }
 
-  redirect('/dashboard');
+  // To complete the login flow, we also need to sign the user in on the client
+  // Since we can't do that from a server action, we redirect to login
+  // where the user can immediately log in with their new credentials.
+  redirect('/login');
 }
 
 export async function authenticate(
@@ -90,21 +99,32 @@ export async function authenticate(
   try {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    await signInWithEmailAndPassword(auth, email, password);
     
-    const user = auth.currentUser;
-    // You might want to check for admin role here from a custom claim
-    // or a document in Firestore.
-    // For now, we assume any login can be an admin based on the query param.
+    // We use the client SDK here just to sign the user in.
+    // The session is managed by Firebase automatically.
+    await signInWithEmailAndPassword(clientAuth, email, password);
+
+    const user = await adminAuth.getUserByEmail(email);
+
     if (formData.has('role') && formData.get('role') === 'admin') {
-      redirect('/admin');
+      const userDoc = await adminDb.collection('admins').doc(user.uid).get();
+      if (userDoc.exists) {
+        redirect('/admin');
+      } else {
+         return 'You are not an administrator.';
+      }
     }
 
     redirect('/dashboard');
   } catch (error: any) {
-    if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+    if (
+      error.code === 'auth/wrong-password' ||
+      error.code === 'auth/user-not-found' ||
+      error.code === 'auth/invalid-credential'
+    ) {
       return 'Invalid credentials.';
     }
+    console.error(error);
     return 'Something went wrong.';
   }
 }
@@ -135,6 +155,7 @@ const FormSchema = z.object({
   priority: z.enum(['Low', 'Medium', 'High'], {
     required_error: 'Please select a priority level.',
   }),
+  citizenId: z.string(), // Added citizenId
 });
 
 const CreateComplaint = FormSchema.omit({
@@ -155,11 +176,6 @@ export type State = {
 };
 
 export async function createComplaint(prevState: State, formData: FormData) {
-  const user = auth.currentUser;
-  if (!user) {
-    return { message: 'You must be logged in to create a complaint.' };
-  }
-
   const validatedFields = CreateComplaint.safeParse({
     title: formData.get('title'),
     category: formData.get('category'),
@@ -168,6 +184,7 @@ export async function createComplaint(prevState: State, formData: FormData) {
     phone: formData.get('phone'),
     email: formData.get('email'),
     priority: formData.get('priority'),
+    citizenId: formData.get('citizenId'),
   });
 
   if (!validatedFields.success) {
@@ -176,17 +193,24 @@ export async function createComplaint(prevState: State, formData: FormData) {
       message: 'Missing Fields. Failed to Create Complaint.',
     };
   }
+  
+  const { citizenId, ...complaintData } = validatedFields.data;
+
+  if (!citizenId) {
+     return { message: 'You must be logged in to create a complaint.' };
+  }
 
   try {
     const newComplaint = {
-      ...validatedFields.data,
-      citizenId: user.uid,
-      date: serverTimestamp(),
+      ...complaintData,
+      citizenId: citizenId,
+      date: FieldValue.serverTimestamp(),
       status: 'Pending',
     };
-    const complaintsCollection = collection(firestore, `citizens/${user.uid}/complaints`);
-    await addDoc(complaintsCollection, newComplaint);
+    const complaintsCollection = adminDb.collection(`citizens/${citizenId}/complaints`);
+    await complaintsCollection.add(newComplaint);
   } catch (e) {
+    console.error(e);
     return {
       message: 'Database Error: Failed to Create Complaint.',
     };
@@ -197,13 +221,12 @@ export async function createComplaint(prevState: State, formData: FormData) {
   redirect('/dashboard');
 }
 
-export async function deleteComplaint(complaintId: string) {
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error('Authentication required.');
+export async function deleteComplaint(citizenId: string, complaintId: string) {
+  if (!citizenId || !complaintId) {
+    throw new Error('Citizen ID and Complaint ID are required.');
   }
-  const complaintDoc = doc(firestore, `citizens/${user.uid}/complaints`, complaintId);
-  await deleteDoc(complaintDoc);
+  const complaintDoc = adminDb.doc(`citizens/${citizenId}/complaints/${complaintId}`);
+  await complaintDoc.delete();
   
   revalidatePath('/dashboard');
   revalidatePath('/admin');
@@ -214,8 +237,8 @@ export async function updateComplaintStatus(
   complaintId: string,
   status: Complaint['status']
 ) {
-  const complaintDoc = doc(firestore, `citizens/${citizenId}/complaints`, complaintId);
-  await updateDoc(complaintDoc, { status });
+  const complaintDoc = adminDb.doc(`citizens/${citizenId}/complaints/${complaintId}`);
+  await complaintDoc.update({ status });
   revalidatePath('/dashboard');
   revalidatePath('/admin');
   revalidatePath(`/complaints/${complaintId}`);

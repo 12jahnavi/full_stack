@@ -18,8 +18,10 @@ import {
 import { deleteComplaint, updateComplaintStatus } from '@/lib/actions';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { usePathname } from 'next/navigation';
+import { useFirebase } from '@/firebase';
 
 export function ComplaintActions({ complaint }: { complaint: Complaint & { citizenId?: string } }) {
+  const { user } = useFirebase();
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
   const isAdminView = pathname.startsWith('/admin');
@@ -27,8 +29,11 @@ export function ComplaintActions({ complaint }: { complaint: Complaint & { citiz
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this complaint? This action cannot be undone.')) {
       startTransition(() => {
-        // @ts-ignore
-        deleteComplaint(complaint.id);
+        // Use citizenId from complaint if available (for admins), otherwise use current user's UID.
+        const effectiveCitizenId = complaint.citizenId || user?.uid;
+        if (effectiveCitizenId) {
+          deleteComplaint(effectiveCitizenId, complaint.id);
+        }
       });
     }
   };

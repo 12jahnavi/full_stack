@@ -69,6 +69,7 @@ export default function ComplaintForm() {
   return (
     <Form {...form}>
       <form action={dispatch}>
+        <input type="hidden" name="citizenId" value={user?.uid} />
         <Card>
           <CardContent className="grid gap-6 pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
