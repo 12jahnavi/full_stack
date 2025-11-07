@@ -7,15 +7,12 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAdminApp } from '@/firebase/admin';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { initializeFirebase } from '@/firebase';
+// We will get the client-side auth instance on the client.
 
 import { analyzeCitizenFeedbackSentiment as analyzeSentimentFlow } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 import type { AnalyzeCitizenFeedbackSentimentOutput } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 import { Complaint, ComplaintCategories, ComplaintPriorities, ComplaintStatuses } from './definitions';
 
-// This is a client-side auth instance, used ONLY for signInWithEmailAndPassword
-// DO NOT use it for any other purpose in this file.
-const { auth: clientAuth } = initializeFirebase();
 
 const adminApp = getAdminApp();
 
@@ -98,43 +95,13 @@ export async function authenticate(
   prevState: string | undefined,
   formData: FormData
 ) {
-  if (!adminApp) {
-    return 'Server configuration error. Please try again later.';
-  }
-  const adminAuth = getAuth(adminApp);
-  const adminDb = getFirestore(adminApp);
-
-  try {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    
-    // We use the client SDK here just to sign the user in to get an ID token.
-    // The session is managed by Firebase automatically on the client.
-    await signInWithEmailAndPassword(clientAuth, email, password);
-
-    // After client sign-in, we can verify the user on the server
-    const user = await adminAuth.getUserByEmail(email);
-
-    if (formData.has('role') && formData.get('role') === 'admin') {
-      const adminDoc = await adminDb.collection('admins').doc(user.uid).get();
-      if (adminDoc.exists) {
-        redirect('/admin');
-      } else {
-         return 'You are not an administrator.';
-      }
-    }
-
-    redirect('/dashboard');
-  } catch (error: any) {
-    if (
-      error.code === 'auth/wrong-password' ||
-      error.code === 'auth/user-not-found' ||
-      error.code === 'auth/invalid-credential'
-    ) {
-      return 'Invalid credentials.';
-    }
-    console.error(error);
-    return 'Something went wrong.';
+   // This action will now only be responsible for redirecting after a CLIENT-SIDE login.
+   // The actual login happens on the client.
+  const role = formData.get('role');
+  if (role === 'admin') {
+      redirect('/admin');
+  } else {
+      redirect('/dashboard');
   }
 }
 
@@ -161,7 +128,7 @@ const FormSchema = z.object({
   priority: z.enum(ComplaintPriorities, {
     required_error: 'Please select a priority level.',
   }),
-  citizenId: z.string(), // Added citizenId
+  citizenId: z.string(),
 });
 
 const CreateComplaint = FormSchema.omit({

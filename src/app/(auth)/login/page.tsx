@@ -1,9 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
-import { authenticate } from '@/lib/actions';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -17,9 +17,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { useFirebase } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginPage() {
-  const [errorMessage, dispatch] = useActionState(authenticate, undefined);
+  const { auth } = useFirebase();
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(undefined);
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push('/dashboard');
+    } catch (error: any) {
+      if (
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/user-not-found' ||
+        error.code === 'auth/invalid-credential'
+      ) {
+        setErrorMessage('Invalid credentials.');
+      } else {
+        setErrorMessage('Something went wrong. Please try again.');
+        console.error(error);
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center space-y-6 w-[400px]">
@@ -31,7 +59,7 @@ export default function LoginPage() {
             Enter your credentials to access your dashboard.
           </CardDescription>
         </CardHeader>
-        <form action={dispatch} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -63,8 +91,8 @@ export default function LoginPage() {
                 Sign up
               </Link>
             </div>
-             <div className="text-center text-sm">
-              <Link href="/login?role=admin" className="text-muted-foreground hover:underline">
+            <div className="text-center text-sm">
+              <Link href="/admin-login" className="text-muted-foreground hover:underline">
                 Login as Admin
               </Link>
             </div>
