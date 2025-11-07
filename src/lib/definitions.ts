@@ -2,9 +2,9 @@ import { Timestamp } from "firebase/firestore";
 
 export type User = {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: 'citizen' | 'admin';
 };
 
 export type Complaint = {

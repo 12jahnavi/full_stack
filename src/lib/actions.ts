@@ -6,18 +6,18 @@ import { redirect } from 'next/navigation';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  getAuth as getClientAuth,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 
 import { analyzeCitizenFeedbackSentiment as analyzeSentimentFlow } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 import type { AnalyzeCitizenFeedbackSentimentOutput } from '@/ai/flows/analyze-citizen-feedback-sentiment';
-import type { Complaint } from './definitions';
+import { Complaint, ComplaintCategories, ComplaintPriorities, ComplaintStatuses } from './definitions';
 
+// This is a client-side auth instance, used ONLY for signInWithEmailAndPassword
+// DO NOT use it for any other purpose in this file.
 const { auth: clientAuth } = initializeFirebase();
+
+// Admin SDK instances for all server-side operations
 const adminApp = initializeAdminApp();
 const adminAuth = getAuth(adminApp);
 const adminDb = getFirestore(adminApp);
@@ -78,7 +78,6 @@ export async function signup(prevState: SignUpState, formData: FormData) {
       address: '',
     });
     
-    // We need to sign the user in on the client after they are created on the server
   } catch (error: any) {
     if (error.code === 'auth/email-already-exists') {
       return { message: 'This email is already in use.' };
@@ -100,15 +99,16 @@ export async function authenticate(
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    // We use the client SDK here just to sign the user in.
-    // The session is managed by Firebase automatically.
+    // We use the client SDK here just to sign the user in to get an ID token.
+    // The session is managed by Firebase automatically on the client.
     await signInWithEmailAndPassword(clientAuth, email, password);
 
+    // After client sign-in, we can verify the user on the server
     const user = await adminAuth.getUserByEmail(email);
 
     if (formData.has('role') && formData.get('role') === 'admin') {
-      const userDoc = await adminDb.collection('admins').doc(user.uid).get();
-      if (userDoc.exists) {
+      const adminDoc = await adminDb.collection('admins').doc(user.uid).get();
+      if (adminDoc.exists) {
         redirect('/admin');
       } else {
          return 'You are not an administrator.';
@@ -136,12 +136,9 @@ const FormSchema = z.object({
       required_error: 'Please enter a title for the complaint.',
     })
     .min(5, { message: 'Title must be at least 5 characters.' }),
-  category: z.enum(
-    ['Roads', 'Utilities', 'Parks', 'Public Transport', 'Other'],
-    {
-      required_error: 'Please select a category.',
-    }
-  ),
+  category: z.enum(ComplaintCategories, {
+    required_error: 'Please select a category.',
+  }),
   description: z
     .string()
     .min(10, { message: 'Description must be at least 10 characters.' }),
@@ -152,7 +149,7 @@ const FormSchema = z.object({
     .string()
     .regex(/^\d{10}$/, { message: 'Phone number must be 10 digits.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  priority: z.enum(['Low', 'Medium', 'High'], {
+  priority: z.enum(ComplaintPriorities, {
     required_error: 'Please select a priority level.',
   }),
   citizenId: z.string(), // Added citizenId
@@ -203,7 +200,6 @@ export async function createComplaint(prevState: State, formData: FormData) {
   try {
     const newComplaint = {
       ...complaintData,
-      citizenId: citizenId,
       date: FieldValue.serverTimestamp(),
       status: 'Pending',
     };
@@ -237,6 +233,9 @@ export async function updateComplaintStatus(
   complaintId: string,
   status: Complaint['status']
 ) {
+  if (!ComplaintStatuses.includes(status)) {
+    throw new Error('Invalid status value.');
+  }
   const complaintDoc = adminDb.doc(`citizens/${citizenId}/complaints/${complaintId}`);
   await complaintDoc.update({ status });
   revalidatePath('/dashboard');

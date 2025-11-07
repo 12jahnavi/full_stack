@@ -15,49 +15,64 @@ import { useFirebase } from '@/firebase';
 import {
   collectionGroup,
   query,
-  where,
   getDocs,
   getDoc,
   doc,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import type { Complaint, User } from '@/lib/definitions';
+import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
+
+interface EnrichedComplaint extends Complaint {
+  citizenId: string;
+  userName: string;
+}
 
 export default function AdminDashboardPage() {
   const { firestore } = useFirebase();
   const searchParams = useSearchParams();
-  const [complaints, setComplaints] = useState<(Complaint & { citizenId: string, userName: string })[]>([]);
+  const [complaints, setComplaints] = useState<EnrichedComplaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const
- 
-currentPage = Number(searchParams.get('page')) || 1;
+  const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchComplaints = async () => {
       if (!firestore) return;
       setIsLoading(true);
-      const complaintsQuery = query(collectionGroup(firestore, 'complaints'));
-      const querySnapshot = await getDocs(complaintsQuery);
-      const allComplaints: (Complaint & { citizenId: string, userName: string })[] = [];
-      for (const complaintDoc of querySnapshot.docs) {
-        const complaint = complaintDoc.data() as Complaint;
-        const citizenId = complaintDoc.ref.parent.parent?.id;
-        if (citizenId) {
-          const userDoc = await getDoc(doc(firestore, 'citizens', citizenId));
-          const userData = userDoc.data() as User;
-          allComplaints.push({ 
-              ...complaint, 
-              id: complaintDoc.id, 
-              citizenId, 
-              userName: userData?.name || 'Unknown User'
+      try {
+        const complaintsQuery = query(collectionGroup(firestore, 'complaints'));
+        const querySnapshot = await getDocs(complaintsQuery);
+        const allComplaints: EnrichedComplaint[] = [];
+        
+        for (const complaintDoc of querySnapshot.docs) {
+          const complaintData = complaintDoc.data() as Complaint;
+          const citizenId = complaintDoc.ref.parent.parent?.id;
+
+          if (citizenId) {
+            const userDocRef = doc(firestore, 'citizens', citizenId);
+            const userDoc = await getDoc(userDocRef);
+            
+            // Construct name from firstName and lastName
+            const userName = userDoc.exists() 
+              ? `${userDoc.data().firstName} ${userDoc.data().lastName}`
+              : 'Unknown User';
+
+            allComplaints.push({
+              ...(complaintData as Complaint),
+              id: complaintDoc.id,
+              citizenId,
+              userName,
             });
+          }
         }
+        setComplaints(allComplaints);
+      } catch (error) {
+        console.error("Error fetching complaints:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setComplaints(allComplaints);
-      setIsLoading(false);
     };
     fetchComplaints();
   }, [firestore]);
@@ -114,7 +129,6 @@ currentPage = Number(searchParams.get('page')) || 1;
                   <TableCell>{complaint.userName}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
-                    {/* @ts-ignore */}
                     {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
                   </TableCell>
                   <TableCell>

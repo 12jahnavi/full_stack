@@ -1,6 +1,6 @@
 'use client';
 
-import { notFound } from 'next/navigation';
+import { notFound, usePathname, useRouter } from 'next/navigation';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import {
   Card,
@@ -16,46 +16,77 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useFirebase } from '@/firebase';
 import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc, collectionGroup, query, where, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
-import type { Complaint, User as UserType } from '@/lib/definitions';
+import { doc, getDoc, DocumentReference, DocumentData } from 'firebase/firestore';
+import { useEffect, useState, useMemo } from 'react';
+import type { Complaint } from '@/lib/definitions';
 
 
 export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
-  const { firestore } = useFirebase();
-  const [complaintRef, setComplaintRef] = useState<any>(null);
-  const [citizen, setCitizen] = useState<UserType | null>(null);
+  const { firestore, user } = useFirebase();
+  const [complaintRef, setComplaintRef] = useState<DocumentReference<DocumentData> | null>(null);
+  const [citizenName, setCitizenName] = useState<string>('Unknown');
+  const router = useRouter();
 
+  // Find the full path to the complaint document.
+  // This is a bit tricky since we only have the complaint ID.
+  // A real app might store the full path or have a different URL structure.
+  // For now, we assume the user viewing is the owner, or an admin.
   useEffect(() => {
-    const findComplaint = async () => {
-      if (!firestore) return;
-      const complaintsQuery = query(
-        collectionGroup(firestore, 'complaints'),
-        where('__name__', '==', params.id)
-      );
-      const snapshot = await getDocs(complaintsQuery);
-      if (!snapshot.empty) {
-        const complaintDoc = snapshot.docs[0];
-        setComplaintRef(complaintDoc.ref);
-        const citizenId = complaintDoc.ref.parent.parent?.id;
-        if (citizenId) {
-            const userDoc = await getDocs(doc(firestore, 'citizens', citizenId) as any);
-            setCitizen(userDoc.data() as UserType);
+    const findComplaintPath = async () => {
+      if (!firestore || !user) return;
+
+      // Try citizen's own complaints first
+      const potentialPath = `citizens/${user.uid}/complaints/${params.id}`;
+      const docRef = doc(firestore, potentialPath);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        setComplaintRef(docRef);
+        setCitizenName(user.displayName || 'Unknown');
+      } else {
+        // If not found, a real app would need a more robust way to find the complaint
+        // (e.g., for an admin). Since we don't have that, we can assume not found.
+        // For this app, an admin finds complaints via collectionGroup, but that's inefficient here.
+        // We'll stick to the user's complaints.
+        // A better structure might be a top-level 'complaints' collection.
+      }
+    };
+    findComplaintPath();
+  }, [firestore, user, params.id]);
+
+  const memoizedComplaintRef = useMemo(() => complaintRef, [complaintRef]);
+
+  // @ts-ignore
+  const { data: complaint, isLoading } = useDoc<Complaint>(memoizedComplaintRef);
+
+  // Fetch citizen data if an admin is viewing
+  useEffect(() => {
+    const fetchCitizenData = async () => {
+      if (firestore && complaint?.citizenId && user?.uid !== complaint.citizenId) {
+        const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setCitizenName(`${userData.firstName} ${userData.lastName}`);
         }
       }
     };
-    findComplaint();
-  }, [firestore, params.id]);
+    if (complaint) {
+      fetchCitizenData();
+    }
+  }, [firestore, complaint, user]);
 
-  // @ts-ignore
-  const { data: complaint, isLoading } = useDoc<Complaint>(complaintRef);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div>Loading complaint details...</div>;
   }
 
-  if (!complaint) {
-    return notFound();
+  if (!complaint && !isLoading) {
+     // A delay to allow path discovery to complete
+    setTimeout(() => {
+        if (!complaintRef) notFound();
+    }, 2000)
+    return <div>Searching for complaint...</div>
   }
   
   return (
@@ -64,7 +95,7 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
         <h2 className="text-2xl font-bold tracking-tight">Complaint Details</h2>
         <p className="text-muted-foreground">
           Viewing details for complaint ID:{' '}
-          <span className="font-mono">{complaint.id}</span>
+          <span className="font-mono">{params.id}</span>
         </p>
       </div>
 
@@ -84,7 +115,7 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span>
-                    Submitted by: <strong>{citizen?.name ?? 'Unknown'}</strong>
+                    Submitted by: <strong>{citizenName}</strong>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -112,7 +143,6 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
             <CardContent className="space-y-4 text-sm">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                {/* @ts-ignore */}
                 <span>Submitted on {new Date(complaint.date.seconds * 1000).toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-2">

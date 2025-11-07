@@ -13,20 +13,23 @@ import {
 } from '@/components/ui/table';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
+import type { Complaint } from '@/lib/definitions';
 
 export default function DashboardPage() {
   const { firestore, user } = useFirebase();
 
-  const complaintsQuery =
-    user && firestore
-      ? collection(firestore, 'citizens', user.uid, 'complaints')
-      : null;
+  const complaintsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+        collection(firestore, 'citizens', user.uid, 'complaints'),
+        orderBy('date', 'desc')
+    );
+  }, [firestore, user]);
       
-  // @ts-ignore
-  const { data: userComplaints, isLoading } = useCollection(complaintsQuery);
+  const { data: userComplaints, isLoading } = useCollection<Complaint>(complaintsQuery);
 
   return (
     <>
@@ -81,7 +84,7 @@ export default function DashboardPage() {
                   <TableCell>{complaint.category}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
-                    {new Date(complaint.date).toLocaleDateString()}
+                    {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     <ComplaintStatusBadge status={complaint.status} />
