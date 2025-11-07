@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { initializeAdminApp } from '@/firebase/admin';
+import { getAdminApp } from '@/firebase/admin';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebase } from '@/firebase';
 
@@ -17,10 +17,7 @@ import { Complaint, ComplaintCategories, ComplaintPriorities, ComplaintStatuses 
 // DO NOT use it for any other purpose in this file.
 const { auth: clientAuth } = initializeFirebase();
 
-// Admin SDK instances for all server-side operations
-const adminApp = initializeAdminApp();
-const adminAuth = getAuth(adminApp);
-const adminDb = getFirestore(adminApp);
+const adminApp = getAdminApp();
 
 const SignUpSchema = z
   .object({
@@ -49,6 +46,12 @@ export type SignUpState = {
 };
 
 export async function signup(prevState: SignUpState, formData: FormData) {
+  if (!adminApp) {
+    return { message: 'Server configuration error. Please try again later.' };
+  }
+  const adminAuth = getAuth(adminApp);
+  const adminDb = getFirestore(adminApp);
+
   const validatedFields = SignUpSchema.safeParse(
     Object.fromEntries(formData.entries())
   );
@@ -95,6 +98,12 @@ export async function authenticate(
   prevState: string | undefined,
   formData: FormData
 ) {
+  if (!adminApp) {
+    return 'Server configuration error. Please try again later.';
+  }
+  const adminAuth = getAuth(adminApp);
+  const adminDb = getFirestore(adminApp);
+
   try {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
@@ -173,6 +182,11 @@ export type State = {
 };
 
 export async function createComplaint(prevState: State, formData: FormData) {
+  if (!adminApp) {
+    return { message: 'Server configuration error. Please try again later.' };
+  }
+  const adminDb = getFirestore(adminApp);
+
   const validatedFields = CreateComplaint.safeParse({
     title: formData.get('title'),
     category: formData.get('category'),
@@ -218,6 +232,10 @@ export async function createComplaint(prevState: State, formData: FormData) {
 }
 
 export async function deleteComplaint(citizenId: string, complaintId: string) {
+  if (!adminApp) {
+    throw new Error('Server configuration error. Please try again later.');
+  }
+  const adminDb = getFirestore(adminApp);
   if (!citizenId || !complaintId) {
     throw new Error('Citizen ID and Complaint ID are required.');
   }
@@ -233,6 +251,11 @@ export async function updateComplaintStatus(
   complaintId: string,
   status: Complaint['status']
 ) {
+  if (!adminApp) {
+    throw new Error('Server configuration error. Please try again later.');
+  }
+  const adminDb = getFirestore(adminApp);
+
   if (!ComplaintStatuses.includes(status)) {
     throw new Error('Invalid status value.');
   }
