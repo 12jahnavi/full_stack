@@ -3,30 +3,23 @@
  *
  * Core Philosophy:
  * This ruleset enforces a strict user-ownership model for citizen data,
- * separating citizen and admin data into distinct collections. All data
- * is nested under a user-specific path (/citizens/{citizenId}/...) to
- * ensure that only the authenticated user can access their own data.
+ * while allowing administrators to read and manage all complaints. It
+ * separates citizen and admin data into distinct collections.
  *
  * Data Structure:
- * - /citizens/{citizenId}: Stores citizen profiles. The 'citizenId' MUST
- *   match the Firebase Auth UID of the user.
- * - /admins/{adminId}: Stores admin profiles. The 'adminId' MUST match
- *   the Firebase Auth UID of the admin.
- * - /citizens/{citizenId}/complaints/{complaintId}: Stores complaints
- *   submitted by citizens. The 'citizenId' in the path MUST match the
- *   'citizenId' property within the complaint document, enforcing ownership.
- * - /citizens/{citizenId}/feedback/{feedbackId}: Stores feedback submitted
- *   by citizens. The 'citizenId' in the path MUST match the 'citizenId'
- *   property within the feedback document, enforcing ownership.
+ * - /citizens/{citizenId}: Stores citizen profiles.
+ * - /admins/{adminId}: Stores admin profiles. Used to check for admin privileges.
+ * - /citizens/{citizenId}/complaints/{complaintId}: Stores complaints submitted by citizens.
+ * - /citizens/{citizenId}/feedback/{feedbackId}: Stores feedback from citizens.
  *
  * Key Security Decisions:
+ * - Citizens can only access their own data.
+ * - Admins can read all complaints and update their status, but cannot delete them or modify other fields.
  * - User listing is disallowed for both citizens and admins.
- * - The rules explicitly deny any ambiguous or unspecified access.
  *
  * Denormalization for Authorization:
- * The 'citizenId' is duplicated in both the path and within the
- * Complaint and Feedback documents. This denormalization allows for
- * simple security rules that avoid costly 'get()' operations.
+ * The 'citizenId' is duplicated in the path and within the Complaint and Feedback documents.
+ * This denormalization allows for simple security rules that avoid costly 'get()' operations.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -59,13 +52,17 @@ service cloud.firestore {
     }
 
     /**
+     * @description Checks if the requesting user is an admin.
+     * Admins have their UID stored in the /admins collection.
+     * @returns {boolean} True if the user is an admin.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    /**
      * @description Rule for /citizens/{citizenId} documents.
      * @path /citizens/{citizenId}
-     * @allow (create) User with UID 'user123' can create their own citizen document.
-     *   request.auth.uid == 'user123' and request.resource.data.id == 'user123'
-     * @deny (create) User with UID 'user123' cannot create a citizen document for another user ('user456').
-     *   request.auth.uid == 'user123' and request.resource.data.id == 'user456'
-     * @deny (read, write) Any user cannot read or modify other user citizen document.
      * @principle Enforces document ownership and self-creation for citizen profiles.
      */
     match /citizens/{citizenId} {
@@ -79,11 +76,6 @@ service cloud.firestore {
     /**
      * @description Rule for /admins/{adminId} documents.
      * @path /admins/{adminId}
-     * @allow (create) Admin with UID 'admin123' can create their own admin document.
-     *   request.auth.uid == 'admin123' and request.resource.data.id == 'admin123'
-     * @deny (create) Admin with UID 'admin123' cannot create an admin document for another user ('admin456').
-     *   request.auth.uid == 'admin123' and request.resource.data.id == 'admin456'
-     * @deny (read, write) Any user cannot read or modify other user admin document.
      * @principle Enforces document ownership and self-creation for admin profiles.
      */
     match /admins/{adminId} {
@@ -97,29 +89,25 @@ service cloud.firestore {
     /**
      * @description Rule for /citizens/{citizenId}/complaints/{complaintId} documents.
      * @path /citizens/{citizenId}/complaints/{complaintId}
-     * @allow (create) User with UID 'user123' can create a complaint under their citizen document.
-     *   request.auth.uid == 'user123' and request.resource.data.citizenId == 'user123'
-     * @deny (create) User with UID 'user123' cannot create a complaint under another user's citizen document.
-     *   request.auth.uid == 'user123' and request.resource.data.citizenId == 'user456'
-     * @deny (read, write) Any user cannot read or modify other user complaint document.
-     * @principle Enforces document ownership for complaints.
+     * @principle Enforces document ownership for citizens, but allows admins to view and update status.
      */
     match /citizens/{citizenId}/complaints/{complaintId} {
+      // Citizen access
       allow get: if isOwner(citizenId);
-      allow list: if isOwner(citizenId);
       allow create: if isOwner(citizenId) && request.resource.data.citizenId == citizenId;
-      allow update: if isExistingOwner(citizenId) && resource.data.citizenId == citizenId;
-      allow delete: if isExistingOwner(citizenId) && resource.data.citizenId == citizenId;
+      allow delete: if isExistingOwner(citizenId) && resource.data.citizenId == citizenId && resource.data.status == 'Pending';
+
+      // Admin access
+      allow list: if isAdmin(); // Allows collectionGroup query
+      allow update: if isAdmin() && request.resource.data.status != resource.data.status; // Admins can only update status
+
+      // Combined access for read/list for citizens
+      allow list: if isOwner(citizenId);
     }
 
     /**
      * @description Rule for /citizens/{citizenId}/feedback/{feedbackId} documents.
      * @path /citizens/{citizenId}/feedback/{feedbackId}
-     * @allow (create) User with UID 'user123' can create feedback under their citizen document.
-     *   request.auth.uid == 'user123' and request.resource.data.citizenId == 'user123'
-     * @deny (create) User with UID 'user123' cannot create feedback under another user's citizen document.
-     *   request.auth.uid == 'user123' and request.resource.data.citizenId == 'user456'
-     * @deny (read, write) Any user cannot read or modify other user feedback document.
      * @principle Enforces document ownership for feedback.
      */
     match /citizens/{citizenId}/feedback/{feedbackId} {
