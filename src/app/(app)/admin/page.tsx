@@ -82,7 +82,9 @@ export default function AdminDashboardPage({
           </TableBody>
         </Table>
       </div>
-      <Pagination totalPages={totalPages} />
+      <div className="mt-4">
+        <Pagination totalPages={totalPages} />
+      </div>
     </>
   );
 }
