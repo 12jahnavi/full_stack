@@ -1,17 +1,35 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
-import { analyzeCitizenFeedbackSentiment, type SentimentState } from '@/lib/actions';
+import { useActionState, useOptimistic } from 'react';
+import { useFormStatus } from 'react-dom';
+import {
+  analyzeCitizenFeedbackSentiment,
+  type SentimentState,
+} from '@/lib/actions';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Bot, ThumbsUp, ThumbsDown, Meh } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import SentimentAnalysisResult from '@/components/sentiment-analysis-result';
 
 export default function SentimentAnalyzerPage() {
-  const initialState: SentimentState = { message: null, errors: {}, analysis: null };
-  const [state, dispatch] = useFormState(analyzeCitizenFeedbackSentiment, initialState);
+  const initialState: SentimentState = {
+    message: null,
+    errors: {},
+    analysis: null,
+  };
+  const [state, dispatch] = useActionState(
+    analyzeCitizenFeedbackSentiment,
+    initialState
+  );
 
   return (
     <>
@@ -20,7 +38,8 @@ export default function SentimentAnalyzerPage() {
           <Bot className="h-6 w-6 text-primary" /> AI Powered Sentiment Analyzer
         </h2>
         <p className="text-muted-foreground">
-          Assess the sentiment of citizen feedback to better gauge urgent concerns.
+          Assess the sentiment of citizen feedback to better gauge urgent
+          concerns.
         </p>
       </div>
 
@@ -54,7 +73,7 @@ export default function SentimentAnalyzerPage() {
             </CardFooter>
           </form>
         </Card>
-        
+
         <SentimentAnalysisResult state={state} />
       </div>
     </>
