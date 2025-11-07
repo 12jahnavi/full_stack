@@ -5,15 +5,17 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import AppLogo from './app-logo';
-import { useSearchParams } from 'next/navigation';
+import { useUser } from '@/firebase';
 
 export default function MainNav({
   className,
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isAdmin = searchParams.get('role') === 'admin' || pathname.startsWith('/admin');
+  const { user } = useUser();
+  
+  // A simple way to check for admin role. In a real app, use custom claims.
+  const isAdmin = user?.email === 'admin@example.com';
 
   const routes = [
     {
@@ -42,7 +44,10 @@ export default function MainNav({
     },
   ];
 
-  const visibleRoutes = routes.filter(route => isAdmin ? route.admin : !route.admin);
+  const visibleRoutes = routes.filter(route => {
+    if (!user) return false; // Don't show nav links if not logged in
+    return isAdmin ? route.admin : !route.admin;
+  });
 
   return (
     <nav

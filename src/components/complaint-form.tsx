@@ -3,10 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { createComplaint, type State } from '@/lib/actions';
+import { useRouter } from 'next/navigation';
 import { ComplaintCategories, ComplaintPriorities } from '@/lib/definitions';
+import { createComplaint } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +26,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useFirebase } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 const FormSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
@@ -48,12 +49,15 @@ const FormSchema = z.object({
   }),
 });
 
-export default function ComplaintForm() {
-  const { user } = useFirebase();
-  const initialState: State = { message: null, errors: {} };
-  const [state, dispatch] = useActionState(createComplaint, initialState);
+type FormValues = z.infer<typeof FormSchema>;
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+export default function ComplaintForm() {
+  const { user, firestore } = useFirebase();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       title: '',
@@ -62,14 +66,41 @@ export default function ComplaintForm() {
       phone: '',
       email: user?.email ?? '',
     },
-    // @ts-ignore
-    errors: state?.errors,
   });
+
+  async function onSubmit(data: FormValues) {
+    if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'You must be logged in to submit a complaint.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createComplaint(firestore, user.uid, data);
+      toast({
+        title: 'Success!',
+        description: 'Your complaint has been submitted.',
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Error',
+        description: 'Failed to create complaint. Please try again.',
+      });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
 
   return (
     <Form {...form}>
-      <form action={dispatch}>
-        <input type="hidden" name="citizenId" value={user?.uid} />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardContent className="grid gap-6 pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -135,7 +166,6 @@ export default function ComplaintForm() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      name={field.name}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -163,7 +193,6 @@ export default function ComplaintForm() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      name={field.name}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -222,26 +251,14 @@ export default function ComplaintForm() {
                 )}
               />
             </div>
-            {state?.message && (
-              <p className="text-sm font-medium text-destructive">
-                {state.message}
-              </p>
-            )}
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
-            <SubmitButton />
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Submit Complaint'}
+            </Button>
           </CardFooter>
         </Card>
       </form>
     </Form>
-  );
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? 'Submitting...' : 'Submit Complaint'}
-    </Button>
   );
 }

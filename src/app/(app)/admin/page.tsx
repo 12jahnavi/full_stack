@@ -11,7 +11,7 @@ import {
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
 import Pagination from '@/components/pagination';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import {
   collectionGroup,
   query,
@@ -22,6 +22,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface EnrichedComplaint extends Complaint {
   citizenId: string;
@@ -30,9 +31,19 @@ interface EnrichedComplaint extends Complaint {
 
 export default function AdminDashboardPage() {
   const { firestore } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const router = useRouter();
+
   const searchParams = useSearchParams();
   const [complaints, setComplaints] = useState<EnrichedComplaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Redirect if user is not an admin
+  useEffect(() => {
+    if (!isUserLoading && user?.email !== 'admin@example.com') {
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
 
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
@@ -54,7 +65,6 @@ export default function AdminDashboardPage() {
             const userDocRef = doc(firestore, 'citizens', citizenId);
             const userDoc = await getDoc(userDocRef);
             
-            // Construct name from firstName and lastName
             const userName = userDoc.exists() 
               ? `${userDoc.data().firstName} ${userDoc.data().lastName}`
               : 'Unknown User';
@@ -74,8 +84,10 @@ export default function AdminDashboardPage() {
         setIsLoading(false);
       }
     };
-    fetchComplaints();
-  }, [firestore]);
+    if (user?.email === 'admin@example.com') {
+        fetchComplaints();
+    }
+  }, [firestore, user]);
 
   const queryParam = searchParams.get('query') || '';
   const filteredComplaints = complaints.filter(
@@ -90,6 +102,10 @@ export default function AdminDashboardPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  
+  if (isUserLoading || user?.email !== 'admin@example.com') {
+    return <div className="h-24 text-center">Loading or redirecting...</div>;
+  }
 
   return (
     <>
@@ -129,7 +145,7 @@ export default function AdminDashboardPage() {
                   <TableCell>{complaint.userName}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
-                    {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
+                    {complaint.date ? new Date(complaint.date.seconds * 1000).toLocaleDateString() : 'No date'}
                   </TableCell>
                   <TableCell>
                     <ComplaintStatusBadge status={complaint.status} />

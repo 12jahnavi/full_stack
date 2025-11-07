@@ -28,13 +28,22 @@ export default function LoginPage() {
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(undefined);
+    if (!auth) {
+        setErrorMessage('Firebase not initialized. Please try again later.');
+        return;
+    }
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // This is a simple way to differentiate admin. A real app should use custom claims.
+      if (userCredential.user.email === 'admin@example.com') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       if (
         error.code === 'auth/wrong-password' ||
@@ -89,11 +98,6 @@ export default function LoginPage() {
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline">
                 Sign up
-              </Link>
-            </div>
-            <div className="text-center text-sm">
-              <Link href="/admin-login" className="text-muted-foreground hover:underline">
-                Login as Admin
               </Link>
             </div>
           </CardFooter>

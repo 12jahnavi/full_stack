@@ -1,9 +1,11 @@
 'use client';
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState } from 'react';
 import Link from 'next/link';
-import { signup, type SignUpState } from '@/lib/actions';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,93 +16,197 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { useFirebase } from '@/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
+const SignUpSchema = z
+  .object({
+    firstName: z.string().min(1, { message: 'First name is required.' }),
+    lastName: z.string().min(1, { message: 'Last name is required.' }),
+    email: z.string().email({ message: 'Please enter a valid email.' }),
+    password: z.string().min(6, {
+      message: 'Password must be at least 6 characters.',
+    }),
+    confirmPassword: z.string(),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    message: "Passwords don't match.",
+    path: ['confirmPassword'],
+  });
+
+type SignUpFormData = z.infer<typeof SignUpSchema>;
 
 export default function SignupPage() {
-  const initialState: SignUpState = { message: null, errors: {} };
-  const [state, dispatch] = useActionState(signup, initialState);
+  const { auth, firestore } = useFirebase();
+  const router = useRouter();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<SignUpFormData>({
+    resolver: zodResolver(SignUpSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
+  const onSubmit = async (data: SignUpFormData) => {
+    if (!auth || !firestore) {
+        setServerError('Firebase is not ready. Please try again later.');
+        return;
+    }
+    setIsSubmitting(true);
+    setServerError(null);
+    const { email, password, firstName, lastName } = data;
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await updateProfile(user, {
+        displayName: `${firstName} ${lastName}`,
+      });
+
+      await setDoc(doc(firestore, 'citizens', user.uid), {
+        id: user.uid,
+        firstName,
+        lastName,
+        email,
+        phone: '', 
+        address: '',
+      });
+      
+      router.push('/dashboard');
+
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setServerError('This email address is already in use.');
+      } else {
+        setServerError('An unexpected error occurred. Please try again.');
+        console.error(error);
+      }
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center space-y-6 w-[400px]">
       <AppLogo />
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Create an Account</CardTitle>
-          <CardDescription>
-            Enter your details to get started.
-          </CardDescription>
-        </CardHeader>
-        <form action={dispatch}>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" name="firstName" required />
-                 {state.errors?.firstName && <p className="text-sm font-medium text-destructive">{state.errors.firstName[0]}</p>}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardHeader>
+              <CardTitle>Create an Account</CardTitle>
+              <CardDescription>
+                Enter your details to get started.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" name="lastName" required />
-                {state.errors?.lastName && <p className="text-sm font-medium text-destructive">{state.errors.lastName[0]}</p>}
+              <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="you@example.com" {...field} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} required />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              {serverError && (
+                <div className="flex items-center justify-center">
+                  <p className="text-sm font-medium text-destructive">
+                    {serverError}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4">
+               <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                <ArrowRight className="ml-auto h-5 w-5" />
+              </Button>
+              <div className="text-center text-sm">
+                Already have an account?{' '}
+                <Link href="/login" className="text-primary hover:underline">
+                  Login
+                </Link>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-              />
-               {state.errors?.email && <p className="text-sm font-medium text-destructive">{state.errors.email[0]}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required />
-               {state.errors?.password && <p className="text-sm font-medium text-destructive">{state.errors.password[0]}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-              />
-               {state.errors?.confirmPassword && <p className="text-sm font-medium text-destructive">{state.errors.confirmPassword[0]}</p>}
-            </div>
-            {state.message && (
-              <div className="flex items-center justify-center">
-                <p className="text-sm font-medium text-destructive">
-                  {state.message}
-                </p>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <SignUpButton />
-            <div className="text-center text-sm">
-              Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
-                Login
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
+            </CardFooter>
+          </form>
+        </Form>
       </Card>
     </div>
-  );
-}
-
-function SignUpButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" aria-disabled={pending}>
-      {pending ? 'Creating Account...' : 'Create Account'}
-      <ArrowRight className="ml-auto h-5 w-5" />
-    </Button>
   );
 }

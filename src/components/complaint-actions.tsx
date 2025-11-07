@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,35 +15,58 @@ import {
   DropdownMenuPortal,
   DropdownMenuSubContent
 } from '@/components/ui/dropdown-menu';
-import { deleteComplaint, updateComplaintStatus } from '@/lib/actions';
+import { deleteComplaint, updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { usePathname } from 'next/navigation';
 import { useFirebase } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 export function ComplaintActions({ complaint }: { complaint: Complaint & { citizenId?: string } }) {
-  const { user } = useFirebase();
-  const [isPending, startTransition] = useTransition();
+  const { user, firestore } = useFirebase();
+  const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
   const pathname = usePathname();
   const isAdminView = pathname.startsWith('/admin');
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Database not available.' });
+        return;
+    }
     if (confirm('Are you sure you want to delete this complaint? This action cannot be undone.')) {
-      startTransition(() => {
-        // Use citizenId from complaint if available (for admins), otherwise use current user's UID.
-        const effectiveCitizenId = complaint.citizenId || user?.uid;
-        if (effectiveCitizenId) {
-          deleteComplaint(effectiveCitizenId, complaint.id);
+      setIsPending(true);
+      const effectiveCitizenId = complaint.citizenId || user?.uid;
+      if (effectiveCitizenId) {
+        try {
+            await deleteComplaint(firestore, effectiveCitizenId, complaint.id);
+            toast({ title: 'Success', description: 'Complaint deleted.'});
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete complaint.' });
+        } finally {
+            setIsPending(false);
         }
-      });
+      }
     }
   };
 
-  const handleStatusChange = (status: Complaint['status']) => {
-    startTransition(() => {
-        if (complaint.citizenId) {
-            updateComplaintStatus(complaint.citizenId, complaint.id, status);
+  const handleStatusChange = async (status: Complaint['status']) => {
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Database not available.' });
+        return;
+    }
+    setIsPending(true);
+     if (complaint.citizenId) {
+        try {
+            await updateComplaintStatus(firestore, complaint.citizenId, complaint.id, status);
+            toast({ title: 'Success', description: 'Complaint status updated.'});
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to update status.' });
+        } finally {
+            setIsPending(false);
         }
-    });
+     }
   };
 
   return (
