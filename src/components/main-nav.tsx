@@ -5,15 +5,14 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import AppLogo from './app-logo';
-import { users } from '@/lib/data';
 
 export default function MainNav({
   className,
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  // In a real app, you'd get the user role from a session.
-  const user = users[0]; // Assuming citizen user for nav links
+  // This is a simplified check. In a real app, you'd use a more robust
+  // method to determine the user's role (e.g., from a session).
   const isAdmin = pathname.startsWith('/admin');
 
   const routes = [

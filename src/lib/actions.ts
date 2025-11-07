@@ -92,6 +92,7 @@ export async function updateComplaintStatus(id: string, status: 'Pending' | 'In 
   console.log(`Updating complaint ${id} to status: ${status}`);
   revalidatePath('/dashboard');
   revalidatePath('/admin');
+  revalidatePath(`/complaints/${id}`);
 }
 
 const SentimentSchema = z.object({

@@ -3,9 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useActionState, useOptimistic } from 'react';
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { createComplaint } from '@/lib/actions';
+import { createComplaint, type State } from '@/lib/actions';
 import { ComplaintCategories, ComplaintPriorities } from '@/lib/definitions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +48,7 @@ const FormSchema = z.object({
 });
 
 export default function ComplaintForm() {
-  const initialState = { message: null, errors: {} };
+  const initialState: State = { message: null, errors: {} };
   const [state, dispatch] = useActionState(createComplaint, initialState);
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -60,6 +60,7 @@ export default function ComplaintForm() {
       phone: '',
       email: '',
     },
+    errors: state.errors,
   });
 
   return (
@@ -130,6 +131,7 @@ export default function ComplaintForm() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      name={field.name}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -155,8 +157,9 @@ export default function ComplaintForm() {
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValuecha<ctrl61>nge={field.onChange}
                       defaultValue={field.value}
+                      name={field.name}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -215,7 +218,7 @@ export default function ComplaintForm() {
                 )}
               />
             </div>
-            {state.message && (
+            {state.message && !state.errors && (
               <p className="text-sm font-medium text-destructive">
                 {state.message}
               </p>

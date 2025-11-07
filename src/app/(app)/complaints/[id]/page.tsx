@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Tag, MapPin, User, Hash, AlertTriangle, Mail, Phone } from 'lucide-react';
+import { Calendar, Tag, MapPin, User, Mail, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertTriangle } from 'lucide-react';
 
 export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const complaint = complaints.find(c => c.id === params.id);
