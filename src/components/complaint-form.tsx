@@ -26,6 +26,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { useFirebase } from '@/firebase';
 
 const FormSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
@@ -48,6 +49,7 @@ const FormSchema = z.object({
 });
 
 export default function ComplaintForm() {
+  const { user } = useFirebase();
   const initialState: State = { message: null, errors: {} };
   const [state, dispatch] = useActionState(createComplaint, initialState);
 
@@ -58,7 +60,7 @@ export default function ComplaintForm() {
       description: '',
       location: '',
       phone: '',
-      email: '',
+      email: user?.email ?? '',
     },
     // @ts-ignore
     errors: state?.errors,

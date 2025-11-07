@@ -31,7 +31,7 @@ export default function LoginPage() {
             Enter your credentials to access your dashboard.
           </CardDescription>
         </CardHeader>
-        <form action={dispatch}>
+        <form action={dispatch} className="space-y-4">
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -58,6 +58,12 @@ export default function LoginPage() {
           <CardFooter className="flex flex-col gap-4">
             <LoginButton />
             <div className="text-center text-sm">
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="text-primary hover:underline">
+                Sign up
+              </Link>
+            </div>
+             <div className="text-center text-sm">
               <Link href="/login?role=admin" className="text-muted-foreground hover:underline">
                 Login as Admin
               </Link>

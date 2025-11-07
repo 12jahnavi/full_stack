@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type User = {
   id: string;
   name: string;
@@ -15,8 +17,8 @@ export type Complaint = {
   email: string;
   status: 'Pending' | 'In Progress' | 'Resolved' | 'Rejected';
   priority: 'Low' | 'Medium' | 'High';
-  date: string;
-  userId: string;
+  date: Timestamp;
+  citizenId: string;
   imageUrl?: string;
 };
 

@@ -1,36 +1,80 @@
-import { complaints, users } from '@/lib/data';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+'use client';
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
 import Pagination from '@/components/pagination';
+import { useFirebase } from '@/firebase';
+import {
+  collectionGroup,
+  query,
+  where,
+  getDocs,
+  getDoc,
+  doc,
+} from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import type { Complaint, User } from '@/lib/definitions';
+import { useSearchParams } from 'next/navigation';
 
-export default function AdminDashboardPage({
-  searchParams,
-}: {
-  searchParams?: {
-    query?: string;
-    page?: string;
-  };
-}) {
-  const query = searchParams?.query || '';
-  const currentPage = Number(searchParams?.page) || 1;
+export default function AdminDashboardPage() {
+  const { firestore } = useFirebase();
+  const searchParams = useSearchParams();
+  const [complaints, setComplaints] = useState<(Complaint & { citizenId: string, userName: string })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const
+ 
+currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
 
-  const filteredComplaints = complaints.filter(complaint => 
-    complaint.title.toLowerCase().includes(query.toLowerCase()) ||
-    complaint.description.toLowerCase().includes(query.toLowerCase()) ||
-    complaint.id.toLowerCase().includes(query.toLowerCase())
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      if (!firestore) return;
+      setIsLoading(true);
+      const complaintsQuery = query(collectionGroup(firestore, 'complaints'));
+      const querySnapshot = await getDocs(complaintsQuery);
+      const allComplaints: (Complaint & { citizenId: string, userName: string })[] = [];
+      for (const complaintDoc of querySnapshot.docs) {
+        const complaint = complaintDoc.data() as Complaint;
+        const citizenId = complaintDoc.ref.parent.parent?.id;
+        if (citizenId) {
+          const userDoc = await getDoc(doc(firestore, 'citizens', citizenId));
+          const userData = userDoc.data() as User;
+          allComplaints.push({ 
+              ...complaint, 
+              id: complaintDoc.id, 
+              citizenId, 
+              userName: userData?.name || 'Unknown User'
+            });
+        }
+      }
+      setComplaints(allComplaints);
+      setIsLoading(false);
+    };
+    fetchComplaints();
+  }, [firestore]);
+
+  const queryParam = searchParams.get('query') || '';
+  const filteredComplaints = complaints.filter(
+    complaint =>
+      complaint.title.toLowerCase().includes(queryParam.toLowerCase()) ||
+      complaint.description.toLowerCase().includes(queryParam.toLowerCase()) ||
+      complaint.id.toLowerCase().includes(queryParam.toLowerCase())
   );
-  
+
   const totalPages = Math.ceil(filteredComplaints.length / itemsPerPage);
   const paginatedComplaints = filteredComplaints.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const getUserName = (userId: string) => {
-    return users.find(u => u.id === userId)?.name || 'Unknown User';
-  }
 
   return (
     <>
@@ -56,14 +100,23 @@ export default function AdminDashboardPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedComplaints.length > 0 ? (
-              paginatedComplaints.map((complaint) => (
+            {isLoading ? (
+                <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">Loading...</TableCell>
+                </TableRow>
+            ) : paginatedComplaints.length > 0 ? (
+              paginatedComplaints.map(complaint => (
                 <TableRow key={complaint.id}>
-                  <TableCell className="font-mono text-xs">{complaint.id}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {complaint.id}
+                  </TableCell>
                   <TableCell className="font-medium">{complaint.title}</TableCell>
-                  <TableCell>{getUserName(complaint.userId)}</TableCell>
+                  <TableCell>{complaint.userName}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
-                  <TableCell>{new Date(complaint.date).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {/* @ts-ignore */}
+                    {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <ComplaintStatusBadge status={complaint.status} />
                   </TableCell>

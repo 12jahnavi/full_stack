@@ -19,7 +19,7 @@ import { deleteComplaint, updateComplaintStatus } from '@/lib/actions';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { usePathname } from 'next/navigation';
 
-export function ComplaintActions({ complaint }: { complaint: Complaint }) {
+export function ComplaintActions({ complaint }: { complaint: Complaint & { citizenId?: string } }) {
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
   const isAdminView = pathname.startsWith('/admin');
@@ -27,6 +27,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this complaint? This action cannot be undone.')) {
       startTransition(() => {
+        // @ts-ignore
         deleteComplaint(complaint.id);
       });
     }
@@ -34,7 +35,9 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
 
   const handleStatusChange = (status: Complaint['status']) => {
     startTransition(() => {
-      updateComplaintStatus(complaint.id, status);
+        if (complaint.citizenId) {
+            updateComplaintStatus(complaint.citizenId, complaint.id, status);
+        }
     });
   };
 
@@ -53,7 +56,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         
-        {isAdminView && (
+        {isAdminView && complaint.citizenId && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <span>Update Status</span>
