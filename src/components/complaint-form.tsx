@@ -61,7 +61,7 @@ export default function ComplaintForm() {
       email: '',
     },
     // @ts-ignore
-    errors: state.errors,
+    errors: state?.errors,
   });
 
   return (
@@ -219,7 +219,7 @@ export default function ComplaintForm() {
                 )}
               />
             </div>
-            {state.message && (
+            {state?.message && (
               <p className="text-sm font-medium text-destructive">
                 {state.message}
               </p>

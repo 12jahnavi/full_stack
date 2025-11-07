@@ -5,15 +5,15 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import AppLogo from './app-logo';
+import { useSearchParams } from 'next/navigation';
 
 export default function MainNav({
   className,
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  // This is a simplified check. In a real app, you'd use a more robust
-  // method to determine the user's role (e.g., from a session).
-  const isAdmin = pathname.startsWith('/admin');
+  const searchParams = useSearchParams();
+  const isAdmin = searchParams.get('role') === 'admin' || pathname.startsWith('/admin');
 
   const routes = [
     {
@@ -49,7 +49,7 @@ export default function MainNav({
       className={cn('flex items-center space-x-4 lg:space-x-6', className)}
       {...props}
     >
-      <AppLogo className="hidden md:flex" />
+      <AppLogo className="mr-6 hidden md:flex" />
       {visibleRoutes.map((route) => (
         <Link
           key={route.href}
