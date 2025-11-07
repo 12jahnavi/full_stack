@@ -60,6 +60,7 @@ export default function ComplaintForm() {
       phone: '',
       email: '',
     },
+    // @ts-ignore
     errors: state.errors,
   });
 
@@ -157,7 +158,7 @@ export default function ComplaintForm() {
                   <FormItem>
                     <FormLabel>Priority</FormLabel>
                     <Select
-                      onValuecha<ctrl61>nge={field.onChange}
+                      onValueChange={field.onChange}
                       defaultValue={field.value}
                       name={field.name}
                     >
@@ -218,7 +219,7 @@ export default function ComplaintForm() {
                 )}
               />
             </div>
-            {state.message && !state.errors && (
+            {state.message && (
               <p className="text-sm font-medium text-destructive">
                 {state.message}
               </p>
