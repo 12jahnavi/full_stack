@@ -11,7 +11,7 @@ import {
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
 import Pagination from '@/components/pagination';
-import { useFirebase, useUser } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import {
   collectionGroup,
   query,
@@ -30,20 +30,34 @@ interface EnrichedComplaint extends Complaint {
 }
 
 export default function AdminDashboardPage() {
-  const { firestore } = useFirebase();
-  const { user, isUserLoading } = useUser();
+  const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
 
   const searchParams = useSearchParams();
   const [complaints, setComplaints] = useState<EnrichedComplaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Redirect if user is not an admin
   useEffect(() => {
-    if (!isUserLoading && user?.email !== 'admin@example.com') {
-      router.push('/dashboard');
-    }
-  }, [user, isUserLoading, router]);
+    const checkAdminStatus = async () => {
+      if (isUserLoading) return;
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      if (firestore) {
+        const adminDocRef = doc(firestore, 'admins', user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+        if (!adminDoc.exists()) {
+          router.push('/dashboard');
+        } else {
+          setIsAdmin(true);
+        }
+      }
+    };
+    checkAdminStatus();
+  }, [user, isUserLoading, router, firestore]);
 
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
@@ -56,7 +70,7 @@ export default function AdminDashboardPage() {
         const complaintsQuery = query(collectionGroup(firestore, 'complaints'));
         const querySnapshot = await getDocs(complaintsQuery);
         const allComplaints: EnrichedComplaint[] = [];
-        
+
         for (const complaintDoc of querySnapshot.docs) {
           const complaintData = complaintDoc.data() as Complaint;
           const citizenId = complaintDoc.ref.parent.parent?.id;
@@ -64,8 +78,8 @@ export default function AdminDashboardPage() {
           if (citizenId) {
             const userDocRef = doc(firestore, 'citizens', citizenId);
             const userDoc = await getDoc(userDocRef);
-            
-            const userName = userDoc.exists() 
+
+            const userName = userDoc.exists()
               ? `${userDoc.data().firstName} ${userDoc.data().lastName}`
               : 'Unknown User';
 
@@ -79,15 +93,15 @@ export default function AdminDashboardPage() {
         }
         setComplaints(allComplaints);
       } catch (error) {
-        console.error("Error fetching complaints:", error);
+        console.error('Error fetching complaints:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    if (user?.email === 'admin@example.com') {
-        fetchComplaints();
+    if (isAdmin) {
+      fetchComplaints();
     }
-  }, [firestore, user]);
+  }, [firestore, isAdmin]);
 
   const queryParam = searchParams.get('query') || '';
   const filteredComplaints = complaints.filter(
@@ -102,8 +116,8 @@ export default function AdminDashboardPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  
-  if (isUserLoading || user?.email !== 'admin@example.com') {
+
+  if (isUserLoading || !isAdmin) {
     return <div className="h-24 text-center">Loading or redirecting...</div>;
   }
 
@@ -132,20 +146,28 @@ export default function AdminDashboardPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-                <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">Loading...</TableCell>
-                </TableRow>
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
             ) : paginatedComplaints.length > 0 ? (
               paginatedComplaints.map(complaint => (
                 <TableRow key={complaint.id}>
                   <TableCell className="font-mono text-xs">
                     {complaint.id}
                   </TableCell>
-                  <TableCell className="font-medium">{complaint.title}</TableCell>
+                  <TableCell className="font-medium">
+                    {complaint.title}
+                  </TableCell>
                   <TableCell>{complaint.userName}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
-                    {complaint.date ? new Date(complaint.date.seconds * 1000).toLocaleDateString() : 'No date'}
+                    {complaint.date
+                      ? new Date(
+                          complaint.date.seconds * 1000
+                        ).toLocaleDateString()
+                      : 'No date'}
                   </TableCell>
                   <TableCell>
                     <ComplaintStatusBadge status={complaint.status} />

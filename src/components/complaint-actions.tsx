@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,38 +13,62 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
-  DropdownMenuSubContent
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { deleteComplaint, updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
-import { usePathname } from 'next/navigation';
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { doc, getDoc } from 'firebase/firestore';
 
-export function ComplaintActions({ complaint }: { complaint: Complaint & { citizenId?: string } }) {
+export function ComplaintActions({
+  complaint,
+}: {
+  complaint: Complaint & { citizenId?: string };
+}) {
   const { user, firestore } = useFirebase();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
-  const pathname = usePathname();
-  const isAdminView = pathname.startsWith('/admin');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user && firestore) {
+        const adminDocRef = doc(firestore, 'admins', user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+        setIsAdmin(adminDoc.exists());
+      }
+    };
+    checkAdminStatus();
+  }, [user, firestore]);
 
   const handleDelete = async () => {
     if (!firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Database not available.' });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Database not available.',
+      });
+      return;
     }
-    if (confirm('Are you sure you want to delete this complaint? This action cannot be undone.')) {
+    if (
+      confirm('Are you sure you want to delete this complaint? This action cannot be undone.')
+    ) {
       setIsPending(true);
       const effectiveCitizenId = complaint.citizenId || user?.uid;
       if (effectiveCitizenId) {
         try {
-            await deleteComplaint(firestore, effectiveCitizenId, complaint.id);
-            toast({ title: 'Success', description: 'Complaint deleted.'});
+          await deleteComplaint(firestore, effectiveCitizenId, complaint.id);
+          toast({ title: 'Success', description: 'Complaint deleted.' });
         } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete complaint.' });
+          console.error(error);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to delete complaint.',
+          });
         } finally {
-            setIsPending(false);
+          setIsPending(false);
         }
       }
     }
@@ -52,21 +76,34 @@ export function ComplaintActions({ complaint }: { complaint: Complaint & { citiz
 
   const handleStatusChange = async (status: Complaint['status']) => {
     if (!firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Database not available.' });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Database not available.',
+      });
+      return;
     }
     setIsPending(true);
-     if (complaint.citizenId) {
-        try {
-            await updateComplaintStatus(firestore, complaint.citizenId, complaint.id, status);
-            toast({ title: 'Success', description: 'Complaint status updated.'});
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to update status.' });
-        } finally {
-            setIsPending(false);
-        }
-     }
+    if (complaint.citizenId) {
+      try {
+        await updateComplaintStatus(
+          firestore,
+          complaint.citizenId,
+          complaint.id,
+          status
+        );
+        toast({ title: 'Success', description: 'Complaint status updated.' });
+      } catch (error) {
+        console.error(error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to update status.',
+        });
+      } finally {
+        setIsPending(false);
+      }
+    }
   };
 
   return (
@@ -79,12 +116,14 @@ export function ComplaintActions({ complaint }: { complaint: Complaint & { citiz
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(complaint.id)}>
+        <DropdownMenuItem
+          onClick={() => navigator.clipboard.writeText(complaint.id)}
+        >
           Copy Complaint ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        
-        {isAdminView && complaint.citizenId && (
+
+        {isAdmin && complaint.citizenId && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <span>Update Status</span>
@@ -92,7 +131,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint & { citiz
             <DropdownMenuPortal>
               <DropdownMenuSubContent>
                 {ComplaintStatuses.map(status => (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     key={status}
                     onClick={() => handleStatusChange(status)}
                     disabled={isPending || complaint.status === status}
@@ -105,8 +144,12 @@ export function ComplaintActions({ complaint }: { complaint: Complaint & { citiz
           </DropdownMenuSub>
         )}
 
-        {(complaint.status === 'Pending' || isAdminView) && (
-          <DropdownMenuItem className="text-destructive" onClick={handleDelete} disabled={isPending}>
+        {(complaint.status === 'Pending' || isAdmin) && (
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={handleDelete}
+            disabled={isPending}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </DropdownMenuItem>

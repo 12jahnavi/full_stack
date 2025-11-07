@@ -19,30 +19,50 @@ import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function LoginPage() {
-  const { auth } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const router = useRouter();
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(
+    undefined
+  );
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage(undefined);
-    if (!auth) {
-        setErrorMessage('Firebase not initialized. Please try again later.');
-        return;
+    if (!auth || !firestore) {
+      setErrorMessage('Firebase not initialized. Please try again later.');
+      return;
     }
     const formData = new FormData(event.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // This is a simple way to differentiate admin. A real app should use custom claims.
-      if (userCredential.user.email === 'admin@example.com') {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user;
+
+      // Check if the user is an admin
+      const adminDocRef = doc(firestore, 'admins', user.uid);
+      const adminDoc = await getDoc(adminDocRef);
+
+      if (adminDoc.exists()) {
         router.push('/admin');
       } else {
-        router.push('/dashboard');
+        // Assume citizen if not an admin
+        const citizenDocRef = doc(firestore, 'citizens', user.uid);
+        const citizenDoc = await getDoc(citizenDocRef);
+        if (citizenDoc.exists()) {
+            router.push('/dashboard');
+        } else {
+            setErrorMessage('User profile not found. Please sign up.');
+            auth.signOut();
+        }
       }
     } catch (error: any) {
       if (

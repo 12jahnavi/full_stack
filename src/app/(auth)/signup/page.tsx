@@ -24,6 +24,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { useFirebase } from '@/firebase';
@@ -39,6 +40,9 @@ const SignUpSchema = z
       message: 'Password must be at least 6 characters.',
     }),
     confirmPassword: z.string(),
+    role: z.enum(['citizen', 'admin'], {
+      required_error: 'You need to select a role.',
+    }),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: "Passwords don't match.",
@@ -61,37 +65,50 @@ export default function SignupPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      role: 'citizen',
     },
   });
 
   const onSubmit = async (data: SignUpFormData) => {
     if (!auth || !firestore) {
-        setServerError('Firebase is not ready. Please try again later.');
-        return;
+      setServerError('Firebase is not ready. Please try again later.');
+      return;
     }
     setIsSubmitting(true);
     setServerError(null);
-    const { email, password, firstName, lastName } = data;
+    const { email, password, firstName, lastName, role } = data;
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const user = userCredential.user;
 
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`,
       });
 
-      await setDoc(doc(firestore, 'citizens', user.uid), {
+      const collectionName = role === 'admin' ? 'admins' : 'citizens';
+      const userData = {
         id: user.uid,
         firstName,
         lastName,
         email,
-        phone: '', 
-        address: '',
-      });
-      
-      router.push('/dashboard');
+      };
 
+      if (role === 'citizen') {
+        // @ts-ignore
+        userData.phone = '';
+        // @ts-ignore
+        userData.address = '';
+      }
+
+      await setDoc(doc(firestore, collectionName, user.uid), userData);
+
+      const redirectPath = role === 'admin' ? '/admin' : '/dashboard';
+      router.push(redirectPath);
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         setServerError('This email address is already in use.');
@@ -100,7 +117,7 @@ export default function SignupPage() {
         console.error(error);
       }
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -117,6 +134,38 @@ export default function SignupPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>I am a...</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex space-x-4"
+                      >
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="citizen" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Citizen
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="admin" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Admin</FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -146,44 +195,49 @@ export default function SignupPage() {
                 />
               </div>
               <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        {...field}
+                        required
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               {serverError && (
                 <div className="flex items-center justify-center">
                   <p className="text-sm font-medium text-destructive">
@@ -193,7 +247,11 @@ export default function SignupPage() {
               )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-               <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? 'Creating Account...' : 'Create Account'}
                 <ArrowRight className="ml-auto h-5 w-5" />
               </Button>

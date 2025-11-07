@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
 import { cn } from '@/lib/utils';
 import AppLogo from './app-logo';
 import { useUser } from '@/firebase';
+import { useFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 
 export default function MainNav({
   className,
@@ -13,40 +15,52 @@ export default function MainNav({
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
   const { user } = useUser();
-  
-  // A simple way to check for admin role. In a real app, use custom claims.
-  const isAdmin = user?.email === 'admin@example.com';
+  const { firestore } = useFirebase();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user && firestore) {
+        const adminDocRef = doc(firestore, 'admins', user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+        setIsAdmin(adminDoc.exists());
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkAdminStatus();
+  }, [user, firestore]);
 
   const routes = [
     {
       href: '/dashboard',
       label: 'My Dashboard',
       active: pathname === '/dashboard',
-      admin: false,
+      role: 'citizen',
     },
     {
       href: '/admin',
       label: 'Admin Dashboard',
       active: pathname === '/admin',
-      admin: true,
+      role: 'admin',
     },
     {
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      admin: false,
+      role: 'citizen',
     },
     {
       href: '/sentiment-analyzer',
       label: 'Sentiment Analyzer',
       active: pathname === '/sentiment-analyzer',
-      admin: true,
+      role: 'admin',
     },
   ];
 
   const visibleRoutes = routes.filter(route => {
-    if (!user) return false; // Don't show nav links if not logged in
-    return isAdmin ? route.admin : !route.admin;
+    if (!user) return false;
+    return isAdmin ? route.role === 'admin' : route.role === 'citizen';
   });
 
   return (
@@ -55,13 +69,15 @@ export default function MainNav({
       {...props}
     >
       <AppLogo className="mr-6 hidden md:flex" />
-      {visibleRoutes.map((route) => (
+      {visibleRoutes.map(route => (
         <Link
           key={route.href}
           href={route.href}
           className={cn(
             'text-sm font-medium transition-colors hover:text-primary',
-            route.active ? 'text-black dark:text-white' : 'text-muted-foreground'
+            route.active
+              ? 'text-black dark:text-white'
+              : 'text-muted-foreground'
           )}
         >
           {route.label}
