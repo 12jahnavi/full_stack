@@ -1,6 +1,6 @@
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY && process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim() !== ''
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
   : undefined;
 
