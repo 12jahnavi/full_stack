@@ -19,7 +19,6 @@ import {
   getDoc,
   doc,
   orderBy,
-  collectionGroup
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
@@ -43,11 +42,10 @@ export default function AdminDashboardPage() {
     }
   }, [user, isUserLoading, router]);
 
-  // Use a collectionGroup query to get all complaints, regardless of which citizen they belong to.
-  // This requires a specific Firestore index and security rules.
+  // Use a query on the top-level 'complaints' collection to get all complaints.
+  // The security rules will ensure only admins can perform this list operation.
   const allComplaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // This query now targets the top-level 'complaints' collection.
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, user]);
 
