@@ -74,7 +74,10 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
       const feedbackCollection = collection(firestore, 'feedback');
       await addDoc(feedbackCollection, {
         complaintId: complaint.id,
+        complaintTitle: complaint.title, // Store the title with the feedback
         citizenId: user.uid,
+        name: complaint.name, // Carry over citizen's name
+        email: complaint.email, // Carry over citizen's email
         rating: data.rating,
         comments: data.comments,
         suggestions: data.suggestions,

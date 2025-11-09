@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 // Extending Feedback to include a potential date as Timestamp
 interface FeedbackWithTimestamp extends Omit<Feedback, 'date'> {
     date?: Timestamp;
+    complaintTitle?: string;
 }
 
 export default function AdminFeedbackPage() {
@@ -85,7 +86,7 @@ export default function AdminFeedbackPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Complaint ID</TableHead>
+              <TableHead>Complaint Title</TableHead>
               <TableHead>Rating</TableHead>
               <TableHead>Comments</TableHead>
               <TableHead>Sentiment</TableHead>
@@ -96,8 +97,8 @@ export default function AdminFeedbackPage() {
             {paginatedFeedback.length > 0 ? (
               paginatedFeedback.map(item => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-mono text-xs">
-                    {item.complaintId.substring(0, 7)}...
+                  <TableCell className="font-medium">
+                    {item.complaintTitle || item.complaintId.substring(0, 20)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
