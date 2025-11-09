@@ -14,7 +14,7 @@
  *
  * Key Security Decisions:
  * - Citizens can only access their own data.
- * - Admins can read all complaints and update their status, but cannot delete them or modify other fields.
+ * - Admins can read all complaints and update their status.
  * - User listing is disallowed for both citizens and admins.
  *
  * Denormalization for Authorization:
@@ -89,27 +89,18 @@ service cloud.firestore {
     /**
      * @description Rule for the 'complaints' collection group.
      * @path /{path=**}/complaints/{complaintId}
-     * @principle Allows admins to read all complaints across all citizens.
+     * @principle Allows admins to read all complaints across all citizens, and update their status.
+     * Citizens can only manage their own complaints.
      */
     match /{path=**}/complaints/{complaintId} {
       allow get, list: if isAdmin();
-    }
-
-    /**
-     * @description Rule for /citizens/{citizenId}/complaints/{complaintId} documents.
-     * @path /citizens/{citizenId}/complaints/{complaintId}
-     * @principle Enforces document ownership for citizens, but allows admins to view and update status.
-     */
-    match /citizens/{citizenId}/complaints/{complaintId} {
-      allow get: if isOwner(citizenId) || isAdmin();
-      allow list: if isOwner(citizenId) || isAdmin();
-      allow create: if isOwner(citizenId) && request.resource.data.citizenId == citizenId;
-      allow delete: if isExistingOwner(citizenId) && resource.data.citizenId == citizenId && resource.data.status == 'Pending';
-
-      // Admins can only update the status field
       allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      // The rules below are for citizen-specific access and are effectively combined with the admin rules.
+      allow get, list: if isOwner(path.split('/')[1]);
+      allow create: if isOwner(path.split('/')[1]) && request.resource.data.citizenId == path.split('/')[1];
+      allow delete: if isExistingOwner(path.split('/')[1]) && resource.data.citizenId == path.split('/')[1] && resource.data.status == 'Pending';
     }
-
+    
     /**
      * @description Rule for /citizens/{citizenId}/feedback/{feedbackId} documents.
      * @path /citizens/{citizenId}/feedback/{feedbackId}
