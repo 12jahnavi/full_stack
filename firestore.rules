@@ -62,10 +62,10 @@ service cloud.firestore {
       allow list: if isAdmin() || 
                       (request.auth != null && 
                        request.query.where.size() == 2 &&
-                       request.query.where[0][0] == 'email' &&
-                       request.query.where[0][1] == '==' &&
-                       request.query.where[1][0] == 'name' &&
-                       request.query.where[1][1] == '==');
+                       request.query.where[0].fieldPath == 'email' &&
+                       request.query.where[0].op == '==' &&
+                       request.query.where[1].fieldPath == 'name' &&
+                       request.query.where[1].op == '==');
 
       // WRITE (create): Any user (including anonymous) can create a complaint.
       // We check that the citizenId in the document matches the user's uid, even if anonymous.
