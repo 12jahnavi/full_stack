@@ -37,6 +37,7 @@ export default function AdminDashboardPage() {
   // Use a query on the top-level 'complaints' collection to get all complaints.
   // The security rules will ensure only admins can perform this list operation.
   const allComplaintsQuery = useMemoFirebase(() => {
+    // IMPORTANT: Only run the query if we have a logged-in user and firestore instance.
     if (!firestore || !user) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, user]);
