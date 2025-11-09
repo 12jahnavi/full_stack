@@ -9,6 +9,7 @@ export type User = {
 
 export type Complaint = {
   id: string;
+  name: string;
   title: string;
   category: 'Roads' | 'Utilities' | 'Parks' | 'Public Transport' | 'Other';
   description: string;

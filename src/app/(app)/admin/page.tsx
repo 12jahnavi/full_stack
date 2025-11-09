@@ -16,25 +16,17 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import {
   collection,
   query,
-  getDoc,
-  doc,
   orderBy,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-
-interface EnrichedComplaint extends Complaint {
-  userName: string;
-}
 
 export default function AdminDashboardPage() {
   const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [enrichedComplaints, setEnrichedComplaints] = useState<EnrichedComplaint[]>([]);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -52,59 +44,17 @@ export default function AdminDashboardPage() {
   const { data: complaints, isLoading: isLoadingComplaints } =
     useCollection<Complaint>(allComplaintsQuery);
 
-  useEffect(() => {
-    const enrichComplaintData = async () => {
-      if (!firestore || !complaints) {
-          setEnrichedComplaints([]);
-          return;
-      };
-
-      const enrichedPromises = complaints.map(async (complaint) => {
-        if (!complaint || !complaint.citizenId) {
-          console.warn(`Complaint ${complaint?.id} is invalid or missing citizenId.`);
-          return {
-            ...complaint,
-            userName: 'Unknown User',
-          } as EnrichedComplaint;
-        }
-        
-        let userName = 'Unknown User';
-        try {
-            const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                userName = `${userData.firstName} ${userData.lastName}`;
-            }
-        } catch(e) {
-            console.error("Error fetching user name for complaint:", complaint.id, e);
-        }
-
-        return {
-            ...complaint,
-            userName: userName,
-        };
-      });
-      
-      const resolvedEnriched = (await Promise.all(enrichedPromises)).filter(Boolean) as EnrichedComplaint[];
-      setEnrichedComplaints(resolvedEnriched);
-    };
-
-    enrichComplaintData();
-  }, [complaints, firestore]);
-
-
   // Pagination and Filtering logic
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
   const queryParam = searchParams.get('query') || '';
 
-  const filteredComplaints = enrichedComplaints.filter(
+  const filteredComplaints = (complaints || []).filter(
     complaint =>
       complaint.title.toLowerCase().includes(queryParam.toLowerCase()) ||
       complaint.description.toLowerCase().includes(queryParam.toLowerCase()) ||
       complaint.id.toLowerCase().includes(queryParam.toLowerCase()) ||
-      complaint.userName.toLowerCase().includes(queryParam.toLowerCase())
+      complaint.name.toLowerCase().includes(queryParam.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredComplaints.length / itemsPerPage);
@@ -145,12 +95,12 @@ export default function AdminDashboardPage() {
               paginatedComplaints.map(complaint => (
                 <TableRow key={complaint.id}>
                   <TableCell className="font-mono text-xs">
-                    {complaint.id}
+                    {complaint.id.substring(0, 5)}
                   </TableCell>
                   <TableCell className="font-medium">
                     {complaint.title}
                   </TableCell>
-                  <TableCell>{complaint.userName}</TableCell>
+                  <TableCell>{complaint.name || 'Anonymous'}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
                     {complaint.date

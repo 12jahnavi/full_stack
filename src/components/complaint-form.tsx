@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 
 const FormSchema = z.object({
+  name: z.string().min(2, { message: 'Please enter your name.' }),
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   category: z.enum(ComplaintCategories, {
     required_error: 'Please select a category.',
@@ -60,6 +61,7 @@ export default function ComplaintForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
+      name: '',
       title: '',
       description: '',
       location: '',
@@ -226,7 +228,20 @@ export default function ComplaintForm() {
               </FormItem>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Your Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
