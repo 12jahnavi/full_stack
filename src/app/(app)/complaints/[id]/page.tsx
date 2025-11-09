@@ -14,81 +14,61 @@ import { Calendar, Tag, MapPin, User, Mail, Phone, AlertTriangle } from 'lucide-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc, getDoc, DocumentReference, DocumentData } from 'firebase/firestore';
-import { useEffect, useState, useMemo } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
 
 
 export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const { firestore, user } = useFirebase();
-  const [complaintRef, setComplaintRef] = useState<DocumentReference<DocumentData> | null>(null);
   const [citizenName, setCitizenName] = useState<string>('Unknown');
   const router = useRouter();
 
-  // Find the full path to the complaint document.
-  // This is a bit tricky since we only have the complaint ID.
-  // A real app might store the full path or have a different URL structure.
-  // For now, we assume the user viewing is the owner, or an admin.
-  useEffect(() => {
-    const findComplaintPath = async () => {
-      if (!firestore || !user) return;
+  // Create a memoized reference to the document in the top-level 'complaints' collection
+  const complaintRef = useMemoFirebase(() => {
+    if (!firestore || !params.id) return null;
+    return doc(firestore, 'complaints', params.id);
+  }, [firestore, params.id]);
 
-      // Try citizen's own complaints first
-      const potentialPath = `citizens/${user.uid}/complaints/${params.id}`;
-      const docRef = doc(firestore, potentialPath);
-      const docSnap = await getDoc(docRef);
+  const { data: complaint, isLoading } = useDoc<Complaint>(complaintRef);
 
-      if (docSnap.exists()) {
-        setComplaintRef(docRef);
-        setCitizenName(user.displayName || 'Unknown');
-      } else {
-        // If not found, a real app would need a more robust way to find the complaint
-        // (e.g., for an admin). Since we don't have that, we can assume not found.
-        // For this app, an admin finds complaints via collectionGroup, but that's inefficient here.
-        // We'll stick to the user's complaints.
-        // A better structure might be a top-level 'complaints' collection.
-      }
-    };
-    findComplaintPath();
-  }, [firestore, user, params.id]);
-
-  const memoizedComplaintRef = useMemo(() => complaintRef, [complaintRef]);
-
-  // @ts-ignore
-  const { data: complaint, isLoading } = useDoc<Complaint>(memoizedComplaintRef);
-
-  // Fetch citizen data if an admin is viewing
+  // Fetch citizen data once the complaint data is loaded
   useEffect(() => {
     const fetchCitizenData = async () => {
-      if (firestore && complaint?.citizenId && user?.uid !== complaint.citizenId) {
+      if (firestore && complaint?.citizenId) {
         const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
             const userData = userDoc.data();
             setCitizenName(`${userData.firstName} ${userData.lastName}`);
+        } else {
+            setCitizenName('Unknown User');
         }
       }
     };
+    
     if (complaint) {
       fetchCitizenData();
     }
-  }, [firestore, complaint, user]);
+  }, [firestore, complaint]);
 
 
   if (isLoading) {
     return <div>Loading complaint details...</div>;
   }
-
+  
+  // After loading, if no complaint is found, show the not found page.
   if (!complaint && !isLoading) {
-     // A delay to allow path discovery to complete
-    setTimeout(() => {
-        if (!complaintRef) notFound();
-    }, 2000)
-    return <div>Searching for complaint...</div>
+    notFound();
   }
   
+  // This check should now be redundant, but as a safeguard.
+  if (!complaint) {
+    return <div>Complaint not found.</div>
+  }
+
   return (
     <div>
       <div className="space-y-2 mb-8">
@@ -143,7 +123,8 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
             <CardContent className="space-y-4 text-sm">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>Submitted on {new Date(complaint.date.seconds * 1000).toLocaleString()}</span>
+                { /* @ts-ignore */ }
+                <span>Submitted on {complaint.date ? new Date(complaint.date.seconds * 1000).toLocaleString() : 'N/A'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />

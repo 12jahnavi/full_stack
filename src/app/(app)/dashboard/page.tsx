@@ -15,7 +15,7 @@ import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Complaint } from '@/lib/definitions';
 
 export default function DashboardPage() {
@@ -23,13 +23,16 @@ export default function DashboardPage() {
 
   const complaintsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
+    // Query the top-level 'complaints' collection, filtered by the current user's ID
     return query(
-        collection(firestore, 'citizens', user.uid, 'complaints'),
-        orderBy('date', 'desc')
+      collection(firestore, 'complaints'),
+      where('citizenId', '==', user.uid),
+      orderBy('date', 'desc')
     );
   }, [firestore, user]);
-      
-  const { data: userComplaints, isLoading } = useCollection<Complaint>(complaintsQuery);
+
+  const { data: userComplaints, isLoading } =
+    useCollection<Complaint>(complaintsQuery);
 
   return (
     <>
@@ -84,7 +87,12 @@ export default function DashboardPage() {
                   <TableCell>{complaint.category}</TableCell>
                   <TableCell>{complaint.priority}</TableCell>
                   <TableCell>
-                    {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
+                    {complaint.date
+                      ? new Date(
+                          // @ts-ignore
+                          complaint.date.seconds * 1000
+                        ).toLocaleDateString()
+                      : 'No date'}
                   </TableCell>
                   <TableCell>
                     <ComplaintStatusBadge status={complaint.status} />

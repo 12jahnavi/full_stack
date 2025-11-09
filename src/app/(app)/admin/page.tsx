@@ -14,7 +14,7 @@ import Pagination from '@/components/pagination';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import {
-  collectionGroup,
+  collection,
   query,
   getDoc,
   doc,
@@ -58,11 +58,10 @@ export default function AdminDashboardPage() {
     checkAdminStatus();
   }, [user, isUserLoading, router, firestore]);
 
-  // 2. Set up the real-time query for all complaints
+  // 2. Set up the real-time query for all complaints from the top-level collection
   const allComplaintsQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
-    // Query all documents in the 'complaints' collection group
-    return query(collectionGroup(firestore, 'complaints'), orderBy('date', 'desc'));
+    return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, isAdmin]);
 
   // 3. Use the hook to get real-time complaint data
@@ -77,29 +76,24 @@ export default function AdminDashboardPage() {
       };
 
       const enrichedPromises = complaints.map(async (complaint) => {
-        // Guard against null/undefined complaints in the array
-        if (!complaint) return null;
-
-        const citizenId = complaint.citizenId;
-        // Guard against missing citizenId
-        if (!citizenId) {
-            console.warn(`Complaint ${complaint.id} is missing a citizenId.`);
-            return {
-                ...complaint,
-                userName: 'Unknown User',
-            };
+        if (!complaint || !complaint.citizenId) {
+          console.warn(`Complaint ${complaint?.id} is invalid.`);
+          return {
+            ...complaint,
+            userName: 'Unknown User',
+          } as EnrichedComplaint;
         }
-        
+
         let userName = 'Unknown User';
         try {
-            const userDocRef = doc(firestore, 'citizens', citizenId);
+            const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 userName = `${userData.firstName} ${userData.lastName}`;
             }
         } catch(e) {
-            console.error("Error fetching user name:", e);
+            console.error("Error fetching user name for complaint:", complaint.id, e);
         }
 
         return {
@@ -108,9 +102,8 @@ export default function AdminDashboardPage() {
         };
       });
 
-      const resolvedEnriched = await Promise.all(enrichedPromises);
-      // Filter out any null results from invalid complaints
-      setEnrichedComplaints(resolvedEnriched.filter(c => c !== null) as EnrichedComplaint[]);
+      const resolvedEnriched = (await Promise.all(enrichedPromises)).filter(Boolean) as EnrichedComplaint[];
+      setEnrichedComplaints(resolvedEnriched);
     };
 
     enrichComplaintData();

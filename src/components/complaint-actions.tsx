@@ -21,11 +21,7 @@ import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 
-export function ComplaintActions({
-  complaint,
-}: {
-  complaint: Complaint & { citizenId?: string };
-}) {
+export function ComplaintActions({ complaint }: { complaint: Complaint }) {
   const { user, firestore } = useFirebase();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
@@ -52,24 +48,23 @@ export function ComplaintActions({
       return;
     }
     if (
-      confirm('Are you sure you want to delete this complaint? This action cannot be undone.')
+      confirm(
+        'Are you sure you want to delete this complaint? This action cannot be undone.'
+      )
     ) {
       setIsPending(true);
-      const effectiveCitizenId = complaint.citizenId || user?.uid;
-      if (effectiveCitizenId) {
-        try {
-          await deleteComplaint(firestore, effectiveCitizenId, complaint.id);
-          toast({ title: 'Success', description: 'Complaint deleted.' });
-        } catch (error) {
-          console.error(error);
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to delete complaint.',
-          });
-        } finally {
-          setIsPending(false);
-        }
+      try {
+        await deleteComplaint(firestore, complaint.id);
+        toast({ title: 'Success', description: 'Complaint deleted.' });
+      } catch (error) {
+        console.error(error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to delete complaint.',
+        });
+      } finally {
+        setIsPending(false);
       }
     }
   };
@@ -84,27 +79,25 @@ export function ComplaintActions({
       return;
     }
     setIsPending(true);
-    if (complaint.citizenId) {
-      try {
-        await updateComplaintStatus(
-          firestore,
-          complaint.citizenId,
-          complaint.id,
-          status
-        );
-        toast({ title: 'Success', description: 'Complaint status updated.' });
-      } catch (error) {
-        console.error(error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to update status.',
-        });
-      } finally {
-        setIsPending(false);
-      }
+    try {
+      await updateComplaintStatus(firestore, complaint.id, status);
+      toast({ title: 'Success', description: 'Complaint status updated.' });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update status.',
+      });
+    } finally {
+      setIsPending(false);
     }
   };
+
+  // The user can delete their own complaint if it's pending.
+  // Admins can delete any complaint.
+  const canDelete =
+    isAdmin || (user?.uid === complaint.citizenId && complaint.status === 'Pending');
 
   return (
     <DropdownMenu>
@@ -123,7 +116,7 @@ export function ComplaintActions({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
 
-        {isAdmin && complaint.citizenId && (
+        {isAdmin && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <span>Update Status</span>
@@ -144,7 +137,7 @@ export function ComplaintActions({
           </DropdownMenuSub>
         )}
 
-        {(complaint.status === 'Pending' || isAdmin) && (
+        {canDelete && (
           <DropdownMenuItem
             className="text-destructive"
             onClick={handleDelete}

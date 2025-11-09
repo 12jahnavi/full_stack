@@ -25,10 +25,8 @@ export async function createComplaint(
   citizenId: string,
   data: ComplaintFormData
 ) {
-  const complaintsCollection = collection(
-    firestore,
-    `citizens/${citizenId}/complaints`
-  );
+  // All complaints now go into a single top-level collection
+  const complaintsCollection = collection(firestore, 'complaints');
   await addDoc(complaintsCollection, {
     ...data,
     citizenId,
@@ -41,20 +39,15 @@ export async function createComplaint(
  * Updates the status of a complaint document in Firestore.
  * This is a client-side function.
  * @param firestore - The Firestore instance.
- * @param citizenId - The ID of the citizen who owns the complaint.
  * @param complaintId - The ID of the complaint to update.
  * @param status - The new status.
  */
 export async function updateComplaintStatus(
   firestore: Firestore,
-  citizenId: string,
   complaintId: string,
   status: Complaint['status']
 ) {
-  const complaintDoc = doc(
-    firestore,
-    `citizens/${citizenId}/complaints/${complaintId}`
-  );
+  const complaintDoc = doc(firestore, 'complaints', complaintId);
   await updateDoc(complaintDoc, { status });
 }
 
@@ -62,17 +55,12 @@ export async function updateComplaintStatus(
  * Deletes a complaint document from Firestore.
  * This is a client-side function.
  * @param firestore - The Firestore instance.
- * @param citizenId - The ID of the citizen who owns the complaint.
  * @param complaintId - The ID of the complaint to delete.
  */
 export async function deleteComplaint(
   firestore: Firestore,
-  citizenId: string,
   complaintId: string
 ) {
-  const complaintDoc = doc(
-    firestore,
-    `citizens/${citizenId}/complaints/${complaintId}`
-  );
+  const complaintDoc = doc(firestore, 'complaints', complaintId);
   await deleteDoc(complaintDoc);
 }
