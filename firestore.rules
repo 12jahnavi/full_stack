@@ -88,7 +88,7 @@ service cloud.firestore {
 
     /**
      * @description Rule for the 'complaints' collection group.
-     * @path /citizens/{citizenId}/complaints/{complaintId}
+     * @path /{path=**}/complaints/{complaintId}
      * @principle Allows admins to read all complaints across all citizens.
      */
     match /{path=**}/complaints/{complaintId} {
