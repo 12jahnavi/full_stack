@@ -91,20 +91,24 @@ service cloud.firestore {
      * Admins can read all complaints and update their status.
      */
     match /complaints/{complaintId} {
-      // READ:
+      // READ (get):
       allow get: if isAdmin() || isDocumentOwner(resource);
       
-      // LIST: Admins can list all complaints. Citizens can list their own via a query.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][1] == 'citizenId' && request.query.where[0][2] == request.auth.uid);
+      // READ (list):
+      // Admins can list all complaints.
+      // Citizens can list their own complaints via a query where 'citizenId' == their uid.
+      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][0] == 'citizenId' && request.query.where[0][2] == request.auth.uid);
 
-      // WRITE:
-      // Create: Any signed-in user can create a complaint, but they must be the owner.
+      // WRITE (create): 
+      // Any signed-in user can create a complaint, but they must be the owner.
       allow create: if isSignedIn() && request.resource.data.citizenId == request.auth.uid;
 
-      // Update: Admins can update any complaint. Citizens can only update their own.
+      // WRITE (update): 
+      // Admins can update any complaint. Citizens can only update their own.
       allow update: if isAdmin() || (isDocumentOwner(resource) && request.resource.data.citizenId == resource.data.citizenId);
 
-      // Delete: Admins can delete any complaint. Citizens can only delete their own if it's 'Pending'.
+      // WRITE (delete): 
+      // Admins can delete any complaint. Citizens can only delete their own if it's 'Pending'.
       allow delete: if isAdmin() || (isDocumentOwner(resource) && resource.data.status == 'Pending');
     }
 
