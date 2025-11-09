@@ -76,11 +76,19 @@ export default function AdminDashboardPage() {
           return;
       };
 
-      const enriched: EnrichedComplaint[] = [];
-      for (const complaint of complaints) {
-        // Use the citizenId from the document data directly
+      const enrichedPromises = complaints.map(async (complaint) => {
+        // Guard against null/undefined complaints in the array
+        if (!complaint) return null;
+
         const citizenId = complaint.citizenId;
-        if (!citizenId) continue;
+        // Guard against missing citizenId
+        if (!citizenId) {
+            console.warn(`Complaint ${complaint.id} is missing a citizenId.`);
+            return {
+                ...complaint,
+                userName: 'Unknown User',
+            };
+        }
         
         let userName = 'Unknown User';
         try {
@@ -94,12 +102,15 @@ export default function AdminDashboardPage() {
             console.error("Error fetching user name:", e);
         }
 
-        enriched.push({
+        return {
             ...complaint,
             userName: userName,
-        });
-      }
-      setEnrichedComplaints(enriched);
+        };
+      });
+
+      const resolvedEnriched = await Promise.all(enrichedPromises);
+      // Filter out any null results from invalid complaints
+      setEnrichedComplaints(resolvedEnriched.filter(c => c !== null) as EnrichedComplaint[]);
     };
 
     enrichComplaintData();
@@ -174,6 +185,7 @@ export default function AdminDashboardPage() {
                   <TableCell>
                     {complaint.date
                       ? new Date(
+                          // @ts-ignore
                           complaint.date.seconds * 1000
                         ).toLocaleDateString()
                       : 'No date'}
