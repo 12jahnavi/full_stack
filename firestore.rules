@@ -5,11 +5,7 @@
  * This ruleset allows anyone (including anonymous users) to create complaints.
  * Only authenticated administrators can read the full list of complaints and
  * modify their status. Citizen data is no longer stored, and complaints
-* are in a single top-level collection.
- *
- * Data Structure:
- * - /admins/{adminId}: Stores admin profiles. Used to check for admin privileges.
- * - /complaints/{complaintId}: Stores all complaints in a top-level collection.
+ * are in a single top-level collection.
  *
  */
 rules_version = '2';
