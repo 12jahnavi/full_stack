@@ -92,17 +92,13 @@ service cloud.firestore {
      * @principle Enforces document ownership for citizens, but allows admins to view and update status.
      */
     match /citizens/{citizenId}/complaints/{complaintId} {
-      // Citizen access
-      allow get: if isOwner(citizenId);
+      allow get: if isOwner(citizenId) || isAdmin();
+      allow list: if isOwner(citizenId) || isAdmin();
       allow create: if isOwner(citizenId) && request.resource.data.citizenId == citizenId;
       allow delete: if isExistingOwner(citizenId) && resource.data.citizenId == citizenId && resource.data.status == 'Pending';
 
-      // Admin access
-      allow list: if isAdmin(); // Allows collectionGroup query
-      allow update: if isAdmin() && request.resource.data.status != resource.data.status; // Admins can only update status
-
-      // Combined access for read/list for citizens
-      allow list: if isOwner(citizenId);
+      // Admins can only update the status field
+      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     }
 
     /**
