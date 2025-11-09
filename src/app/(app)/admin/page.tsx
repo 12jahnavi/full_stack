@@ -26,7 +26,6 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
 interface EnrichedComplaint extends Complaint {
-  citizenId: string;
   userName: string;
 }
 
@@ -79,7 +78,8 @@ export default function AdminDashboardPage() {
 
       const enriched: EnrichedComplaint[] = [];
       for (const complaint of complaints) {
-        const citizenId = complaint.ref?.parent?.parent?.id;
+        // Use the citizenId from the document data directly
+        const citizenId = complaint.citizenId;
         if (!citizenId) continue;
         
         let userName = 'Unknown User';
@@ -96,7 +96,6 @@ export default function AdminDashboardPage() {
 
         enriched.push({
             ...complaint,
-            citizenId: citizenId,
             userName: userName,
         });
       }
