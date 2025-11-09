@@ -39,10 +39,10 @@ export default function MainNav({
       active: pathname === '/complaints/new',
       role: 'citizen', // Only for non-admins
     },
-    {
-      href: '/track',
-      label: 'Track Complaint',
-      active: pathname.startsWith('/track'),
+     {
+      href: '/feedback',
+      label: 'Submit Feedback',
+      active: pathname.startsWith('/feedback'),
       role: 'citizen',
     },
     {
