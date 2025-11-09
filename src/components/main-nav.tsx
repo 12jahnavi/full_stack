@@ -29,24 +29,34 @@ export default function MainNav({
     checkAdminStatus();
   }, [user, firestore]);
 
+  // Define all possible routes
   const routes = [
     {
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      role: 'all',
+      role: 'citizen', // Only for non-admins
     },
     {
       href: '/admin',
       label: 'Admin Dashboard',
       active: pathname === '/admin',
-      role: 'admin',
+      role: 'admin', // Only for admins
+    },
+    {
+      href: '/admin/feedback',
+      label: 'Feedback',
+      active: pathname === '/admin/feedback',
+      role: 'admin', // Only for admins
     },
   ];
 
+  // Filter routes based on user role
   const visibleRoutes = routes.filter(route => {
-    if (route.role === 'all') return true;
-    return isAdmin && route.role === 'admin';
+    if (isAdmin) {
+      return route.role === 'admin';
+    }
+    return route.role === 'citizen';
   });
 
   return (

@@ -11,13 +11,18 @@ import {
 import Pagination from '@/components/pagination';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { useEffect } from 'react';
 import type { Feedback } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+
+// Extending Feedback to include a potential date as Timestamp
+interface FeedbackWithTimestamp extends Omit<Feedback, 'date'> {
+    date: Timestamp;
+}
 
 export default function AdminFeedbackPage() {
   const { firestore, user, isUserLoading } = useFirebase();
@@ -32,11 +37,12 @@ export default function AdminFeedbackPage() {
 
   const allFeedbackQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // The security rules ensure only admins can read this collection
     return query(collection(firestore, 'feedback'), orderBy('date', 'desc'));
   }, [firestore, user]);
 
   const { data: feedback, isLoading: isLoadingFeedback } =
-    useCollection<Feedback>(allFeedbackQuery);
+    useCollection<FeedbackWithTimestamp>(allFeedbackQuery);
 
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
@@ -48,7 +54,7 @@ export default function AdminFeedbackPage() {
   );
 
   const getSentimentBadge = (sentiment?: string) => {
-    if (!sentiment) return null;
+    if (!sentiment) return <Badge variant="outline">N/A</Badge>;
     switch (sentiment.toLowerCase()) {
       case 'positive':
         return <Badge className="bg-green-500 text-white">Positive</Badge>;
@@ -111,10 +117,7 @@ export default function AdminFeedbackPage() {
                   <TableCell>{getSentimentBadge(item.sentiment)}</TableCell>
                   <TableCell>
                     {item.date
-                      ? new Date(
-                          // @ts-ignore
-                          item.date.seconds * 1000
-                        ).toLocaleDateString()
+                      ? new Date(item.date.seconds * 1000).toLocaleDateString()
                       : 'No date'}
                   </TableCell>
                 </TableRow>
