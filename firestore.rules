@@ -89,7 +89,7 @@ service cloud.firestore {
     /**
      * @description Rule for a citizen's own complaints.
      * @path /citizens/{citizenId}/complaints/{complaintId}
-     * @principle Citizens can manage their own complaints.
+     * @principle Citizens can manage their own complaints. This rule DOES NOT apply to admins.
      */
     match /citizens/{citizenId}/complaints/{complaintId} {
         allow get, list: if isOwner(citizenId);
@@ -99,13 +99,15 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rule for the 'complaints' collection group, for Admins.
+     * @description Rule for the 'complaints' collection group, specifically for Admins.
      * @path /{path=**}/complaints/{complaintId}
-     * @principle Allows admins to read all complaints and update their status.
+     * @principle Allows admins to read all complaints from the collection group and update only the status.
+     * This rule allows the collectionGroup query on 'complaints' to work for admins.
      */
     match /{path=**}/complaints/{complaintId} {
       allow get, list: if isAdmin();
-      allow update: if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      // Admins can only update the 'status' field.
+      allow update: if isAdmin() && request.resource.data.keys().hasOnly(['status']);
     }
 
     /**
