@@ -18,11 +18,13 @@ export default function MainNav({
 
   useEffect(() => {
     const checkAdminStatus = async () => {
+      // CRITICAL FIX: Only check for admin status if the user is signed in (not anonymous)
       if (user && !user.isAnonymous && firestore) {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
         setIsAdmin(adminDoc.exists());
       } else {
+        // For anonymous or logged-out users, they are never admins.
         setIsAdmin(false);
       }
     };
