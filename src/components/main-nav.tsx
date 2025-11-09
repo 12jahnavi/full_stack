@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import AppLogo from './app-logo';
-import { useUser } from '@/firebase';
 import { useFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -14,13 +13,12 @@ export default function MainNav({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const { user } = useUser();
-  const { firestore } = useFirebase();
+  const { user, firestore } = useFirebase();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (user && firestore) {
+      if (user && !user.isAnonymous && firestore) {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
         setIsAdmin(adminDoc.exists());
@@ -33,9 +31,9 @@ export default function MainNav({
 
   const routes = [
     {
-      href: '/dashboard',
-      label: 'My Dashboard',
-      active: pathname === '/dashboard',
+      href: '/complaints/new',
+      label: 'New Complaint',
+      active: pathname === '/complaints/new',
       role: 'citizen',
     },
     {
@@ -43,12 +41,6 @@ export default function MainNav({
       label: 'Admin Dashboard',
       active: pathname === '/admin',
       role: 'admin',
-    },
-    {
-      href: '/complaints/new',
-      label: 'New Complaint',
-      active: pathname === '/complaints/new',
-      role: 'citizen',
     },
     {
       href: '/sentiment-analyzer',
@@ -59,8 +51,10 @@ export default function MainNav({
   ];
 
   const visibleRoutes = routes.filter(route => {
-    if (!user) return false;
-    return isAdmin ? route.role === 'admin' : route.role === 'citizen';
+    if (isAdmin) {
+      return route.role === 'admin';
+    }
+    return route.role === 'citizen';
   });
 
   return (

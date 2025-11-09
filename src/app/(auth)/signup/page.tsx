@@ -24,13 +24,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { useFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
+// Simplified schema for Admin creation only
 const SignUpSchema = z
   .object({
     firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -40,9 +40,6 @@ const SignUpSchema = z
       message: 'Password must be at least 6 characters.',
     }),
     confirmPassword: z.string(),
-    role: z.enum(['citizen', 'admin'], {
-      required_error: 'You need to select a role.',
-    }),
   })
   .refine(data => data.password === data.confirmPassword, {
     message: "Passwords don't match.",
@@ -65,7 +62,6 @@ export default function SignupPage() {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'citizen',
     },
   });
 
@@ -76,9 +72,10 @@ export default function SignupPage() {
     }
     setIsSubmitting(true);
     setServerError(null);
-    const { email, password, firstName, lastName, role } = data;
+    const { email, password, firstName, lastName } = data;
 
     try {
+      // All signups through this form are for Admins
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -90,7 +87,6 @@ export default function SignupPage() {
         displayName: `${firstName} ${lastName}`,
       });
 
-      const collectionName = role === 'admin' ? 'admins' : 'citizens';
       const userData = {
         id: user.uid,
         firstName,
@@ -98,17 +94,10 @@ export default function SignupPage() {
         email,
       };
 
-      if (role === 'citizen') {
-        // @ts-ignore
-        userData.phone = '';
-        // @ts-ignore
-        userData.address = '';
-      }
+      await setDoc(doc(firestore, 'admins', user.uid), userData);
 
-      await setDoc(doc(firestore, collectionName, user.uid), userData);
-
-      const redirectPath = role === 'admin' ? '/admin' : '/dashboard';
-      router.push(redirectPath);
+      // Redirect to the admin dashboard after signup
+      router.push('/admin');
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         setServerError('This email address is already in use.');
@@ -128,44 +117,12 @@ export default function SignupPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardHeader>
-              <CardTitle>Create an Account</CardTitle>
+              <CardTitle>Create an Admin Account</CardTitle>
               <CardDescription>
-                Enter your details to get started.
+                Enter admin details to get started.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>I am a...</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex space-x-4"
-                      >
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="citizen" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Citizen
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="admin" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Admin</FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -252,7 +209,7 @@ export default function SignupPage() {
                 className="w-full"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                {isSubmitting ? 'Creating Account...' : 'Create Admin Account'}
                 <ArrowRight className="ml-auto h-5 w-5" />
               </Button>
               <div className="text-center text-sm">

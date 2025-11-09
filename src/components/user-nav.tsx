@@ -21,16 +21,15 @@ export function UserNav() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
 
-  if (!user) {
-    return (
-       <Button asChild>
-          <Link href="/login">Login</Link>
-        </Button>
-    )
+  // If there's no user, or the user is anonymous, don't show the user nav.
+  // Admins will be non-anonymous.
+  if (!user || user.isAnonymous) {
+    return null;
   }
 
   return (
@@ -64,7 +63,7 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/admin">Dashboard</Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

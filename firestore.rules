@@ -2,20 +2,14 @@
  * @fileoverview Firestore Security Rules for the Citizen Complaint System.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for citizen data,
- * while allowing administrators to read and manage all complaints. It
- * separates citizen and admin data into distinct collections.
+ * This ruleset allows anyone (including anonymous users) to create complaints.
+ * Only authenticated administrators can read the full list of complaints and
+ * modify their status. Citizen data is no longer stored, and complaints
+* are in a single top-level collection.
  *
  * Data Structure:
- * - /citizens/{citizenId}: Stores citizen profiles.
  * - /admins/{adminId}: Stores admin profiles. Used to check for admin privileges.
  * - /complaints/{complaintId}: Stores all complaints in a top-level collection.
- * - /feedback/{feedbackId}: Stores all feedback in a top-level collection.
- *
- * Key Security Decisions:
- * - Citizens can only create complaints and read/update/delete their own.
- * - Admins can read and update all complaints.
- * - User listing is disallowed for both citizens and admins.
  *
  */
 rules_version = '2';
@@ -23,11 +17,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is authenticated.
+     * @description Checks if the request is from an authenticated (non-anonymous) user.
      * @returns {boolean} True if the request is authenticated, false otherwise.
      */
     function isSignedIn() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != "anonymous";
     }
 
     /**
@@ -37,16 +31,6 @@ service cloud.firestore {
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    /**
-     * @description Checks if the authenticated user is the owner of the resource being acted upon.
-     * It checks the 'citizenId' field within the document's data.
-     * @param {object} docResource The resource object of the document.
-     * @returns {boolean} True if the user's UID matches the document's citizenId.
-     */
-    function isDocumentOwner(docResource) {
-      return isSignedIn() && request.auth.uid == docResource.data.citizenId;
     }
 
     /**
@@ -58,69 +42,42 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    /**
-     * @description Rule for /citizens/{citizenId} documents.
-     * @path /citizens/{citizenId}
-     * @principle Enforces document ownership and self-creation for citizen profiles.
-     */
-    match /citizens/{citizenId} {
-      allow get: if isOwner(citizenId);
-      allow list: if false; // Listing citizens is not permitted.
-      allow create: if isOwner(citizenId) && request.resource.data.id == citizenId;
-      allow update: if isOwner(citizenId) && request.resource.data.id == resource.data.id;
-      allow delete: if isOwner(citizenId);
-    }
-
-    /**
-     * @description Rule for /admins/{adminId} documents.
-     * @path /admins/{adminId}
-     * @principle Enforces document ownership and self-creation for admin profiles.
-     */
+    // Admins can manage their own profile.
     match /admins/{adminId} {
-      allow get: if isOwner(adminId);
-      allow list: if false; // Listing admins is not permitted.
-      allow create: if isOwner(adminId) && request.resource.data.id == adminId;
-      allow update: if isOwner(adminId) && request.resource.data.id == resource.data.id;
-      allow delete: if isOwner(adminId);
+      allow read, write: if isOwner(adminId);
+    }
+    
+    // Citizens collection is no longer used, so deny all access.
+    match /citizens/{citizenId} {
+        allow read, write: if false;
     }
 
     /**
      * @description Rule for the top-level /complaints/{complaintId} collection.
      * @path /complaints/{complaintId}
-     * @principle Citizens can create complaints, and can only read/update/delete their own.
-     * Admins can read all complaints and update their status.
+     * @principle Anyone can create. Admins can read all and update status.
      */
     match /complaints/{complaintId} {
-      // READ (get):
-      allow get: if isAdmin() || isDocumentOwner(resource);
+      // READ (get): Admins can read any single complaint.
+      allow get: if isAdmin();
       
-      // READ (list):
-      // Admins can list all complaints.
-      // Citizens can list their own complaints via a query where 'citizenId' == their uid.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][0] == 'citizenId' && request.query.where[0][2] == request.auth.uid);
+      // READ (list): Only Admins can list all complaints.
+      allow list: if isAdmin();
 
-      // WRITE (create): 
-      // Any signed-in user can create a complaint, but they must be the owner.
-      allow create: if isSignedIn() && request.resource.data.citizenId == request.auth.uid;
+      // WRITE (create): Any user (including anonymous) can create a complaint.
+      // We check that the citizenId in the document matches the user's uid, even if anonymous.
+      allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
 
-      // WRITE (update): 
-      // Admins can update any complaint. Citizens can only update their own.
-      allow update: if isAdmin() || (isDocumentOwner(resource) && request.resource.data.citizenId == resource.data.citizenId);
+      // WRITE (update): Only admins can update any complaint (e.g. to change status).
+      allow update: if isAdmin();
 
-      // WRITE (delete): 
-      // Admins can delete any complaint. Citizens can only delete their own if it's 'Pending'.
-      allow delete: if isAdmin() || (isDocumentOwner(resource) && resource.data.status == 'Pending');
+      // WRITE (delete): Only admins can delete any complaint.
+      allow delete: if isAdmin();
     }
-
-    /**
-     * @description Rule for the top-level /feedback/{feedbackId} collection.
-     * @path /feedback/{feedbackId}
-     * @principle Citizens can create feedback, and can only manage their own. Admins can read all feedback.
-     */
+    
+    // Feedback collection is no longer used.
     match /feedback/{feedbackId} {
-      allow get, list: if isAdmin() || isDocumentOwner(resource);
-      allow create: if isSignedIn() && request.resource.data.citizenId == request.auth.uid;
-      allow update, delete: if isDocumentOwner(resource);
+        allow read, write: if false;
     }
   }
 }

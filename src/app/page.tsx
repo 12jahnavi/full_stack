@@ -7,8 +7,11 @@ import AppLogo from '@/components/app-logo';
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <AppLogo />
+        <Button asChild variant="outline">
+          <Link href="/login">Admin Login</Link>
+        </Button>
       </header>
       <main className="flex-grow">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
@@ -20,13 +23,13 @@ export default function Home() {
                     Make Your Voice Heard in Your City
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    CityZen Complaints is your direct line to city officials. Submit complaints, provide feedback, and track progress on issues that matter to you.
+                    CityZen Complaints is your direct line to city officials. Submit complaints, provide feedback, and help improve your community.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                   <Button asChild size="lg">
-                    <Link href="/login">
-                      Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                    <Link href="/complaints/new">
+                      Submit a Complaint <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 </div>
@@ -57,13 +60,13 @@ export default function Home() {
               <div className="grid gap-1 text-center">
                 <h3 className="text-lg font-bold">Effortless Submission</h3>
                 <p className="text-sm text-muted-foreground">
-                  Quickly file a new complaint with our easy-to-use form, including optional photo uploads.
+                  Quickly file a new complaint with our easy-to-use form. No account needed.
                 </p>
               </div>
               <div className="grid gap-1 text-center">
-                <h3 className="text-lg font-bold">Track Your Impact</h3>
+                <h3 className="text-lg font-bold">Admin Oversight</h3>
                 <p className="text-sm text-muted-foreground">
-                  View all your submissions in a personal dashboard and see status updates in real-time.
+                  A dedicated dashboard for city officials to view, manage, and update the status of all complaints.
                 </p>
               </div>
               <div className="grid gap-1 text-center">

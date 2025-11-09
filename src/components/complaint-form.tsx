@@ -64,7 +64,7 @@ export default function ComplaintForm() {
       description: '',
       location: '',
       phone: '',
-      email: user?.email ?? '',
+      email: '',
     },
   });
 
@@ -73,7 +73,7 @@ export default function ComplaintForm() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'You must be logged in to submit a complaint.',
+        description: 'Connection not ready. Please try again in a moment.',
       });
       return;
     }
@@ -85,7 +85,10 @@ export default function ComplaintForm() {
         title: 'Success!',
         description: 'Your complaint has been submitted.',
       });
-      router.push('/dashboard');
+      // A citizen doesn't have a dashboard anymore, so we can maybe redirect to home
+      // or a success page. For now, let's just clear the form.
+       form.reset();
+      router.push('/');
     } catch (error) {
       console.error(error);
       toast({
