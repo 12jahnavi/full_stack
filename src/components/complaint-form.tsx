@@ -43,7 +43,8 @@ const FormSchema = z.object({
     .min(5, { message: 'Location must be at least 5 characters.' }),
   phone: z
     .string()
-    .regex(/^\d{10}$/, { message: 'Phone number must be 10 digits.' }),
+    .max(10, { message: 'Phone number cannot be more than 10 digits.' })
+    .regex(/^\d+$/, { message: 'Phone number must contain only digits.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   priority: z.enum(ComplaintPriorities, {
     required_error: 'Please select a priority level.',
@@ -262,7 +263,7 @@ export default function ComplaintForm() {
                   <FormItem>
                     <FormLabel>Contact Phone</FormLabel>
                     <FormControl>
-                      <Input type="tel" placeholder="1234567890" {...field} />
+                      <Input type="tel" maxLength={10} placeholder="1234567890" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
