@@ -19,6 +19,7 @@ import {
   getDoc,
   doc,
   orderBy,
+  collectionGroup
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
@@ -34,40 +35,25 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [isAdmin, setIsAdmin] = useState(false);
   const [enrichedComplaints, setEnrichedComplaints] = useState<EnrichedComplaint[]>([]);
 
-  // 1. Check for admin status and redirect if not an admin
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (isUserLoading) return;
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-      if (firestore) {
-        const adminDocRef = doc(firestore, 'admins', user.uid);
-        const adminDoc = await getDoc(adminDocRef);
-        if (!adminDoc.exists()) {
-          router.push('/dashboard'); // Redirect non-admins
-        } else {
-          setIsAdmin(true);
-        }
-      }
-    };
-    checkAdminStatus();
-  }, [user, isUserLoading, router, firestore]);
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
 
-  // 2. Set up the real-time query for all complaints from the top-level collection
+  // Use a collectionGroup query to get all complaints, regardless of which citizen they belong to.
+  // This requires a specific Firestore index and security rules.
   const allComplaintsQuery = useMemoFirebase(() => {
-    if (!firestore || !isAdmin) return null;
+    if (!firestore || !user) return null;
+    // This query now targets the top-level 'complaints' collection.
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
-  }, [firestore, isAdmin]);
+  }, [firestore, user]);
 
-  // 3. Use the hook to get real-time complaint data
-  const { data: complaints, isLoading: isLoadingComplaints } = useCollection<Complaint>(allComplaintsQuery);
+  const { data: complaints, isLoading: isLoadingComplaints } =
+    useCollection<Complaint>(allComplaintsQuery);
 
-  // 4. Enrich complaint data with citizen names when complaints are fetched
   useEffect(() => {
     const enrichComplaintData = async () => {
       if (!firestore || !complaints) {
@@ -83,7 +69,7 @@ export default function AdminDashboardPage() {
             userName: 'Unknown User',
           } as EnrichedComplaint;
         }
-
+        
         let userName = 'Unknown User';
         try {
             const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
@@ -101,7 +87,7 @@ export default function AdminDashboardPage() {
             userName: userName,
         };
       });
-
+      
       const resolvedEnriched = (await Promise.all(enrichedPromises)).filter(Boolean) as EnrichedComplaint[];
       setEnrichedComplaints(resolvedEnriched);
     };
@@ -110,7 +96,7 @@ export default function AdminDashboardPage() {
   }, [complaints, firestore]);
 
 
-  // 5. Pagination and Filtering logic
+  // Pagination and Filtering logic
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
   const queryParam = searchParams.get('query') || '';
@@ -129,8 +115,7 @@ export default function AdminDashboardPage() {
     currentPage * itemsPerPage
   );
   
-  // Show loading state until admin check and initial data load is complete
-  if (isUserLoading || !isAdmin) {
+  if (isUserLoading || isLoadingComplaints) {
     return <div className="h-24 text-center">Loading Admin Dashboard...</div>;
   }
 
@@ -158,13 +143,7 @@ export default function AdminDashboardPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoadingComplaints ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  Loading complaints...
-                </TableCell>
-              </TableRow>
-            ) : paginatedComplaints.length > 0 ? (
+            {paginatedComplaints.length > 0 ? (
               paginatedComplaints.map(complaint => (
                 <TableRow key={complaint.id}>
                   <TableCell className="font-mono text-xs">

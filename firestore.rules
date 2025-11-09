@@ -91,10 +91,13 @@ service cloud.firestore {
      * Admins can read all complaints and update their status.
      */
     match /complaints/{complaintId} {
-      // READ: Admins can read any complaint. Citizens can only read their own.
+      // READ:
       allow get: if isAdmin() || isDocumentOwner(resource);
-      // LIST: Admins can list all. Citizens can only list their own via a query.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where[0][1] == 'citizenId' && request.query.where[0][2] == request.auth.uid);
+      
+      // LIST: Admins can list all complaints.
+      allow list: if isAdmin();
+      // LIST: Citizens can only list their own complaints via a query.
+      allow list: if isSignedIn() && request.query.where[0][1] == 'citizenId' && request.query.where[0][2] == request.auth.uid;
 
       // WRITE:
       // Create: Any signed-in user can create a complaint, but they must be the owner.
