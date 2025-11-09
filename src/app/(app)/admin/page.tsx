@@ -11,13 +11,14 @@ import {
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { ComplaintActions } from '@/components/complaint-actions';
 import Pagination from '@/components/pagination';
-import { useFirebase } from '@/firebase';
+import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import {
   collectionGroup,
   query,
-  getDocs,
   getDoc,
   doc,
+  orderBy,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
@@ -32,13 +33,12 @@ interface EnrichedComplaint extends Complaint {
 export default function AdminDashboardPage() {
   const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
-
   const searchParams = useSearchParams();
-  const [complaints, setComplaints] = useState<EnrichedComplaint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Redirect if user is not an admin
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [enrichedComplaints, setEnrichedComplaints] = useState<EnrichedComplaint[]>([]);
+
+  // 1. Check for admin status and redirect if not an admin
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (isUserLoading) return;
@@ -50,7 +50,7 @@ export default function AdminDashboardPage() {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
         if (!adminDoc.exists()) {
-          router.push('/dashboard');
+          router.push('/dashboard'); // Redirect non-admins
         } else {
           setIsAdmin(true);
         }
@@ -59,56 +59,65 @@ export default function AdminDashboardPage() {
     checkAdminStatus();
   }, [user, isUserLoading, router, firestore]);
 
-  const currentPage = Number(searchParams.get('page')) || 1;
-  const itemsPerPage = 10;
-
-  useEffect(() => {
-    const fetchComplaints = async () => {
-      if (!firestore) return;
-      setIsLoading(true);
-      try {
-        const complaintsQuery = query(collectionGroup(firestore, 'complaints'));
-        const querySnapshot = await getDocs(complaintsQuery);
-        const allComplaints: EnrichedComplaint[] = [];
-
-        for (const complaintDoc of querySnapshot.docs) {
-          const complaintData = complaintDoc.data() as Complaint;
-          const citizenId = complaintDoc.ref.parent.parent?.id;
-
-          if (citizenId) {
-            const userDocRef = doc(firestore, 'citizens', citizenId);
-            const userDoc = await getDoc(userDocRef);
-
-            const userName = userDoc.exists()
-              ? `${userDoc.data().firstName} ${userDoc.data().lastName}`
-              : 'Unknown User';
-
-            allComplaints.push({
-              ...(complaintData as Complaint),
-              id: complaintDoc.id,
-              citizenId,
-              userName,
-            });
-          }
-        }
-        setComplaints(allComplaints);
-      } catch (error) {
-        console.error('Error fetching complaints:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    if (isAdmin) {
-      fetchComplaints();
-    }
+  // 2. Set up the real-time query for all complaints
+  const allComplaintsQuery = useMemoFirebase(() => {
+    if (!firestore || !isAdmin) return null;
+    // Query all documents in the 'complaints' collection group
+    return query(collectionGroup(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, isAdmin]);
 
+  // 3. Use the hook to get real-time complaint data
+  const { data: complaints, isLoading: isLoadingComplaints } = useCollection<Complaint>(allComplaintsQuery);
+
+  // 4. Enrich complaint data with citizen names when complaints are fetched
+  useEffect(() => {
+    const enrichComplaintData = async () => {
+      if (!firestore || !complaints) {
+          setEnrichedComplaints([]);
+          return;
+      };
+
+      const enriched: EnrichedComplaint[] = [];
+      for (const complaint of complaints) {
+        const citizenId = complaint.ref?.parent?.parent?.id;
+        if (!citizenId) continue;
+        
+        let userName = 'Unknown User';
+        try {
+            const userDocRef = doc(firestore, 'citizens', citizenId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                userName = `${userData.firstName} ${userData.lastName}`;
+            }
+        } catch(e) {
+            console.error("Error fetching user name:", e);
+        }
+
+        enriched.push({
+            ...complaint,
+            citizenId: citizenId,
+            userName: userName,
+        });
+      }
+      setEnrichedComplaints(enriched);
+    };
+
+    enrichComplaintData();
+  }, [complaints, firestore]);
+
+
+  // 5. Pagination and Filtering logic
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const itemsPerPage = 10;
   const queryParam = searchParams.get('query') || '';
-  const filteredComplaints = complaints.filter(
+
+  const filteredComplaints = enrichedComplaints.filter(
     complaint =>
       complaint.title.toLowerCase().includes(queryParam.toLowerCase()) ||
       complaint.description.toLowerCase().includes(queryParam.toLowerCase()) ||
-      complaint.id.toLowerCase().includes(queryParam.toLowerCase())
+      complaint.id.toLowerCase().includes(queryParam.toLowerCase()) ||
+      complaint.userName.toLowerCase().includes(queryParam.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredComplaints.length / itemsPerPage);
@@ -116,9 +125,10 @@ export default function AdminDashboardPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
+  
+  // Show loading state until admin check and initial data load is complete
   if (isUserLoading || !isAdmin) {
-    return <div className="h-24 text-center">Loading or redirecting...</div>;
+    return <div className="h-24 text-center">Loading Admin Dashboard...</div>;
   }
 
   return (
@@ -145,10 +155,10 @@ export default function AdminDashboardPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {isLoadingComplaints ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  Loading...
+                  Loading complaints...
                 </TableCell>
               </TableRow>
             ) : paginatedComplaints.length > 0 ? (
