@@ -28,7 +28,6 @@ import {
 } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 
 const FeedbackSchema = z.object({
-  resolvedBy: z.string().min(1, 'This field is required.'),
   rating: z.number().min(1, 'Please select a rating.'),
   comments: z
     .string()
@@ -50,7 +49,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
     defaultValues: { 
       comments: '', 
       suggestions: '',
-      resolvedBy: 'Admin'
+      rating: 0,
     },
   });
 
@@ -81,7 +80,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         rating: data.rating,
         comments: data.comments,
         suggestions: data.suggestions,
-        resolvedBy: data.resolvedBy,
+        resolvedBy: 'Admin', // Pre-filled
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
@@ -127,12 +126,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
           <div className="grid gap-4 py-4">
              <div className="space-y-2">
               <Label htmlFor="resolvedBy">Complaint Resolved By</Label>
-              <Input id="resolvedBy" {...form.register('resolvedBy')} readOnly />
-               {form.formState.errors.resolvedBy && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.resolvedBy.message}
-                </p>
-              )}
+              <Input id="resolvedBy" defaultValue="Admin" readOnly />
             </div>
             
             <div className="space-y-2">
@@ -155,35 +149,55 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
                   </button>
                 ))}
               </div>
-              {form.formState.errors.rating && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.rating.message}
-                </p>
-              )}
+               <FormField
+                  control={form.control}
+                  name="rating"
+                  render={({ field }) => (
+                      <FormItem>
+                      <FormControl>
+                          <Input type="hidden" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                      </FormItem>
+                  )}
+                />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="comments">Comments</Label>
-              <Textarea
-                id="comments"
-                placeholder="Your comments..."
-                {...form.register('comments')}
-              />
-              {form.formState.errors.comments && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.comments.message}
-                </p>
-              )}
-            </div>
+            <FormField
+                control={form.control}
+                name="comments"
+                render={({ field }) => (
+                <FormItem>
+                    <Label>Comments</Label>
+                    <FormControl>
+                        <Textarea
+                            id="comments"
+                            placeholder="Your comments..."
+                            {...field}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="suggestions">Suggestions</Label>
-              <Textarea
-                id="suggestions"
-                placeholder="Any suggestions for improvement?"
-                {...form.register('suggestions')}
-              />
-            </div>
+            <FormField
+                control={form.control}
+                name="suggestions"
+                render={({ field }) => (
+                <FormItem>
+                    <Label>Suggestions</Label>
+                    <FormControl>
+                        <Textarea
+                            id="suggestions"
+                            placeholder="Any suggestions for improvement?"
+                           {...field}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

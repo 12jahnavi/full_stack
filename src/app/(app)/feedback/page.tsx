@@ -22,147 +22,236 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useFirebase, useMemoFirebase } from '@/firebase';
+import { Textarea } from '@/components/ui/textarea';
+import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, where } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Complaint } from '@/lib/definitions';
-import ComplaintStatusBadge from '@/components/complaint-status-badge';
-import { FeedbackDialog } from '@/components/feedback-dialog';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { Star } from 'lucide-react';
+import {
+  analyzeCitizenFeedbackSentiment,
+  type AnalyzeCitizenFeedbackSentimentOutput,
+} from '@/ai/flows/analyze-citizen-feedback-sentiment';
+import { useRouter } from 'next/navigation';
 
-const LookupSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
+
+const FeedbackSchema = z.object({
+  name: z.string().min(1, 'Please enter your name.'),
+  email: z.string().email('Please enter a valid email.'),
+  complaintTitle: z.string().min(5, 'Please enter the title of your complaint.'),
+  rating: z.number().min(1, 'Please select a rating.'),
+  comments: z
+    .string()
+    .min(10, 'Comments must be at least 10 characters long.'),
+  suggestions: z.string().optional(),
 });
 
-type LookupFormValues = z.infer<typeof LookupSchema>;
+type FeedbackFormValues = z.infer<typeof FeedbackSchema>;
 
 export default function FeedbackPage() {
-  const { firestore } = useFirebase();
+  const { firestore, user } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lookupEmail, setLookupEmail] = useState<string | null>(null);
+  const [rating, setRating] = useState(0);
 
-  const form = useForm<LookupFormValues>({
-    resolver: zodResolver(LookupSchema),
+  const form = useForm<FeedbackFormValues>({
+    resolver: zodResolver(FeedbackSchema),
     defaultValues: {
+      name: '',
       email: '',
+      complaintTitle: '',
+      comments: '',
+      suggestions: '',
+      rating: 0,
     },
   });
-
-  const complaintsQuery = useMemoFirebase(() => {
-    if (!firestore || !lookupEmail) return null;
-    return query(
-      collection(firestore, 'complaints'),
-      where('email', '==', lookupEmail),
-      where('status', '==', 'Resolved')
-    );
-  }, [firestore, lookupEmail]);
-
-  const {
-    data: complaints,
-    isLoading: isLoadingComplaints,
-    error,
-  } = useCollection<Complaint>(complaintsQuery);
-
-  const onSubmit = (data: LookupFormValues) => {
-    setLookupEmail(data.email);
+  
+  const handleRating = (rate: number) => {
+    setRating(rate);
+    form.setValue('rating', rate, { shouldValidate: true });
   };
 
-  if (error) {
-    toast({
+  const onSubmit = async (data: FeedbackFormValues) => {
+    if (!firestore || !user) {
+      toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not fetch complaints. Please check your email or try again later.'
-    });
-  }
+        description: 'You must be signed in to submit feedback.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 1. Analyze sentiment
+      const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
+        await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
+
+      // 2. Save feedback to Firestore
+      const feedbackCollection = collection(firestore, 'feedback');
+      await addDoc(feedbackCollection, {
+        // complaintId is unknown here, but we save title and email
+        complaintTitle: data.complaintTitle,
+        citizenId: user.uid,
+        name: data.name,
+        email: data.email,
+        rating: data.rating,
+        comments: data.comments,
+        suggestions: data.suggestions,
+        resolvedBy: "Admin", // Assuming admin resolved it
+        date: serverTimestamp(),
+        sentiment: sentimentResult.sentiment,
+        sentimentConfidence: sentimentResult.confidence,
+        // We add a dummy complaintId, as the schema expects one.
+        // In a real scenario, you'd want a better way to link this.
+        complaintId: `unlinked-${Date.now()}`
+      });
+
+      toast({
+        title: 'Thank you!',
+        description: 'Your feedback has been submitted.',
+      });
+      form.reset();
+      setRating(0);
+      router.push('/');
+
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'Could not submit your feedback. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="space-y-2 mb-8 text-center">
+    <div className="max-w-2xl mx-auto">
+       <div className="space-y-2 mb-8 text-center">
         <h2 className="text-2xl font-bold tracking-tight">Submit Feedback</h2>
         <p className="text-muted-foreground">
-          Find your resolved complaint to leave feedback.
+          Let us know how we did resolving your complaint.
         </p>
       </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+           <Card>
+            <CardContent className="grid gap-6 pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Your Name</FormLabel>
+                            <FormControl>
+                            <Input placeholder="e.g., John Doe" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Your Email</FormLabel>
+                            <FormControl>
+                            <Input type="email" placeholder="you@example.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
 
-      {!lookupEmail ? (
-        <Card>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardHeader>
-                <CardTitle>Find Your Complaint</CardTitle>
-                <CardDescription>
-                  Enter the email you used to submit your complaint.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
+                 <FormField
+                    control={form.control}
+                    name="complaintTitle"
+                    render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Your Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
+                        <FormLabel>Title of the Resolved Complaint</FormLabel>
+                        <FormControl>
+                        <Input placeholder="e.g., Large pothole on Main St" {...field} />
+                        </FormControl>
+                        <FormMessage />
                     </FormItem>
-                  )}
+                    )}
                 />
-              </CardContent>
-              <CardFooter>
+            
+                <div className="space-y-2">
+                    <FormLabel>Overall Rating</FormLabel>
+                    <div className="flex justify-start space-x-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                            key={star}
+                            type="button"
+                            onClick={() => handleRating(star)}
+                            className="focus:outline-none"
+                        >
+                            <Star
+                            className={`h-8 w-8 cursor-pointer ${
+                                star <= rating
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-gray-300'
+                            }`}
+                            />
+                        </button>
+                        ))}
+                    </div>
+                    <FormField
+                        control={form.control}
+                        name="rating"
+                        render={({ field }) => (
+                           <FormItem>
+                             <FormControl>
+                                <Input type="hidden" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                           </FormItem>
+                        )}
+                    />
+                </div>
+                
+                 <FormField
+                    control={form.control}
+                    name="comments"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Comments on Resolution</FormLabel>
+                        <FormControl>
+                        <Textarea placeholder="How was the problem resolved?" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="suggestions"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Suggestions for Improvement (Optional)</FormLabel>
+                        <FormControl>
+                        <Textarea placeholder="How could we do better next time?" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </CardContent>
+             <CardFooter className="border-t px-6 py-4">
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Searching...' : 'Find Complaints'}
+                    {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
                 </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-             <Button variant="outline" onClick={() => setLookupEmail(null)}>Try a different email</Button>
-          {isLoadingComplaints && <p>Loading resolved complaints...</p>}
-          {complaints && complaints.length > 0 ? (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">
-                Found {complaints.length} resolved complaint(s) for{' '}
-                <strong>{lookupEmail}</strong>
-              </h3>
-              {complaints.map(complaint => (
-                <Card key={complaint.id}>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-center">
-                      <span>{complaint.title}</span>
-                       <ComplaintStatusBadge status={complaint.status} />
-                    </CardTitle>
-                    <CardDescription>
-                        Submitted on: {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <FeedbackDialog complaint={complaint} />
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <p>
-                  No resolved complaints found for <strong>{lookupEmail}</strong>.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Please make sure the email is correct and that the complaint status is 'Resolved'.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+            </CardFooter>
+           </Card>
+        </form>
+      </Form>
     </div>
   );
 }
