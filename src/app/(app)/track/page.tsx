@@ -21,16 +21,15 @@ export default function TrackComplaintPage() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const name = formData.get('name') as string;
     const email = formData.get('email') as string;
 
-    if (!name || !email) {
-      setError('Please provide both name and email.');
+    if (!email) {
+      setError('Please provide an email address.');
       return;
     }
     
-    // Pass the name and email as query parameters to the results page
-    const query = new URLSearchParams({ name, email });
+    // Pass the email as a query parameter to the results page
+    const query = new URLSearchParams({ email });
     router.push(`/track/results?${query.toString()}`);
   };
 
@@ -41,20 +40,11 @@ export default function TrackComplaintPage() {
           <CardHeader>
             <CardTitle>Track Your Complaints</CardTitle>
             <CardDescription>
-              Enter your name and email address to find your submitted
-              complaints and their status.
+              Enter your email address to find your submitted complaints and
+              their status.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Your Name</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="e.g., John Doe"
-                required
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Your Email Address</Label>
               <Input

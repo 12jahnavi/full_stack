@@ -58,14 +58,12 @@ service cloud.firestore {
       // READ (get): Admins can read any single complaint. Citizens can read their own.
       allow get: if isAdmin() || (request.auth != null && resource.data.citizenId == request.auth.uid);
       
-      // READ (list): Admins can list all. Citizens can only query by their email and name.
+      // READ (list): Admins can list all. Citizens can only query by their email.
       allow list: if isAdmin() || 
                       (request.auth != null && 
-                       request.query.where.size() == 2 &&
+                       request.query.where.size() == 1 &&
                        request.query.where[0].fieldPath == 'email' &&
-                       request.query.where[0].op == '==' &&
-                       request.query.where[1].fieldPath == 'name' &&
-                       request.query.where[1].op == '==');
+                       request.query.where[0].op == '==');
 
       // WRITE (create): Any user (including anonymous) can create a complaint.
       // We check that the citizenId in the document matches the user's uid, even if anonymous.

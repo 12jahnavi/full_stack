@@ -22,18 +22,16 @@ import { Button } from '@/components/ui/button';
 
 function TrackResults() {
   const searchParams = useSearchParams();
-  const name = searchParams.get('name');
   const email = searchParams.get('email');
   const { firestore } = useFirebase();
 
   const complaintsQuery = useMemoFirebase(() => {
-    if (!firestore || !name || !email) return null;
+    if (!firestore || !email) return null;
     return query(
       collection(firestore, 'complaints'),
-      where('name', '==', name),
       where('email', '==', email)
     );
-  }, [firestore, name, email]);
+  }, [firestore, email]);
 
   const {
     data: complaints,
@@ -41,10 +39,10 @@ function TrackResults() {
     error,
   } = useCollection<Complaint>(complaintsQuery);
 
-  if (!name || !email) {
+  if (!email) {
     return (
       <div className="text-center text-muted-foreground">
-        Please provide a name and email to track your complaints.
+        Please provide an email to track your complaints.
       </div>
     );
   }
@@ -70,8 +68,7 @@ function TrackResults() {
       <div className="space-y-2 mb-8">
         <h2 className="text-2xl font-bold tracking-tight">Your Complaints</h2>
         <p className="text-muted-foreground">
-          Showing results for <span className="font-semibold">{name}</span> (
-          {email}).
+          Showing results for <span className="font-semibold">{email}</span>.
         </p>
       </div>
 
@@ -110,7 +107,7 @@ function TrackResults() {
             <CardHeader>
                 <CardTitle>No Complaints Found</CardTitle>
                 <CardDescription>
-                    We couldn't find any complaints matching that name and email address.
+                    We couldn't find any complaints matching that email address.
                 </CardDescription>
             </CardHeader>
             <CardContent>
