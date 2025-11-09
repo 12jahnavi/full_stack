@@ -1,21 +1,13 @@
+
 import MainNav from '@/components/main-nav';
 import { UserNav } from '@/components/user-nav';
 import { Search } from '@/components/search';
-import { FirebaseClientProvider } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import { getAuth } from 'firebase/auth';
-import { initializeFirebase } from '@/firebase';
-
-function AnonymousSignIn() {
-  const { auth } = initializeFirebase();
-  initiateAnonymousSignIn(auth);
-  return null;
-}
+import { FirebaseClientProvider, AnonymousSignInProvider } from '@/firebase';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <FirebaseClientProvider>
-      <AnonymousSignIn />
+      <AnonymousSignInProvider />
       <div className="flex flex-col min-h-screen">
         <div className="border-b">
           <div className="flex h-16 items-center px-4 container mx-auto">
