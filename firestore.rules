@@ -87,6 +87,15 @@ service cloud.firestore {
     }
 
     /**
+     * @description Rule for the 'complaints' collection group.
+     * @path /citizens/{citizenId}/complaints/{complaintId}
+     * @principle Allows admins to read all complaints across all citizens.
+     */
+    match /{path=**}/complaints/{complaintId} {
+      allow get, list: if isAdmin();
+    }
+
+    /**
      * @description Rule for /citizens/{citizenId}/complaints/{complaintId} documents.
      * @path /citizens/{citizenId}/complaints/{complaintId}
      * @principle Enforces document ownership for citizens, but allows admins to view and update status.
