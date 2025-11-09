@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
 
       const enrichedPromises = complaints.map(async (complaint) => {
         if (!complaint || !complaint.citizenId) {
-          console.warn(`Complaint ${complaint?.id} is invalid.`);
+          console.warn(`Complaint ${complaint?.id} is invalid or missing citizenId.`);
           return {
             ...complaint,
             userName: 'Unknown User',
