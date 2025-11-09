@@ -29,7 +29,7 @@ export type Feedback = {
   citizenId: string;
   rating: 1 | 2 | 3 | 4 | 5;
   comments: string;
-  date: Timestamp;
+  date?: Timestamp; // Make date optional or ensure it's always set
   sentiment?: string;
   sentimentConfidence?: number;
 };

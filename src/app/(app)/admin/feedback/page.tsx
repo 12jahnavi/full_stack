@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 
 // Extending Feedback to include a potential date as Timestamp
 interface FeedbackWithTimestamp extends Omit<Feedback, 'date'> {
-    date: Timestamp;
+    date?: Timestamp;
 }
 
 export default function AdminFeedbackPage() {

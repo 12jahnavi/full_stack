@@ -14,6 +14,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Star } from 'lucide-react';
 import { useFirebase } from '@/firebase';
@@ -26,10 +28,12 @@ import {
 } from '@/ai/flows/analyze-citizen-feedback-sentiment';
 
 const FeedbackSchema = z.object({
+  resolvedBy: z.string().min(1, 'This field is required.'),
   rating: z.number().min(1, 'Please select a rating.'),
   comments: z
     .string()
     .min(10, 'Comments must be at least 10 characters long.'),
+  suggestions: z.string().optional(),
 });
 
 type FeedbackFormValues = z.infer<typeof FeedbackSchema>;
@@ -43,7 +47,11 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
 
   const form = useForm<FeedbackFormValues>({
     resolver: zodResolver(FeedbackSchema),
-    defaultValues: { comments: '' },
+    defaultValues: { 
+      comments: '', 
+      suggestions: '',
+      resolvedBy: 'Admin'
+    },
   });
 
   const onSubmit = async (data: FeedbackFormValues) => {
@@ -69,6 +77,8 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         citizenId: user.uid,
         rating: data.rating,
         comments: data.comments,
+        suggestions: data.suggestions,
+        resolvedBy: data.resolvedBy,
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
@@ -112,39 +122,65 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="flex justify-center space-x-1">
-              {[1, 2, 3, 4, 5].map(star => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => handleRating(star)}
-                  className="focus:outline-none"
-                >
-                  <Star
-                    className={`h-8 w-8 cursor-pointer ${
-                      star <= rating
-                        ? 'text-yellow-400 fill-yellow-400'
-                        : 'text-gray-300'
-                    }`}
-                  />
-                </button>
-              ))}
+             <div className="space-y-2">
+              <Label htmlFor="resolvedBy">Complaint Resolved By</Label>
+              <Input id="resolvedBy" {...form.register('resolvedBy')} readOnly />
+               {form.formState.errors.resolvedBy && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.resolvedBy.message}
+                </p>
+              )}
             </div>
-            {form.formState.errors.rating && (
-              <p className="text-center text-sm text-destructive">
-                {form.formState.errors.rating.message}
-              </p>
-            )}
+            
+            <div className="space-y-2">
+              <Label>Rating</Label>
+              <div className="flex justify-start space-x-1">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => handleRating(star)}
+                    className="focus:outline-none"
+                  >
+                    <Star
+                      className={`h-8 w-8 cursor-pointer ${
+                        star <= rating
+                          ? 'text-yellow-400 fill-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              {form.formState.errors.rating && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.rating.message}
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="comments">Comments</Label>
+              <Textarea
+                id="comments"
+                placeholder="Your comments..."
+                {...form.register('comments')}
+              />
+              {form.formState.errors.comments && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.comments.message}
+                </p>
+              )}
+            </div>
 
-            <Textarea
-              placeholder="Your comments..."
-              {...form.register('comments')}
-            />
-            {form.formState.errors.comments && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.comments.message}
-              </p>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="suggestions">Suggestions</Label>
+              <Textarea
+                id="suggestions"
+                placeholder="Any suggestions for improvement?"
+                {...form.register('suggestions')}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>
