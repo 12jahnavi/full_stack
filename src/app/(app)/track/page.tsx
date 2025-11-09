@@ -1,145 +1,140 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useFirebase, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import type { Complaint } from '@/lib/definitions';
+import { notFound, usePathname, useRouter } from 'next/navigation';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Calendar, Tag, MapPin, User, Mail, Phone, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import type { Complaint } from '@/lib/definitions';
 import { FeedbackDialog } from '@/components/feedback-dialog';
 
-const TrackSchema = z.object({
-  name: z.string().min(2, { message: 'Please enter your full name.' }),
-  email: z.string().email({ message: 'Please enter a valid email.' }),
-});
 
-type TrackFormValues = z.infer<typeof TrackSchema>;
+export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
+  const { firestore, user } = useFirebase();
+  const router = useRouter();
 
-export default function TrackComplaintPage() {
-  const { firestore } = useFirebase();
-  const [searchCriteria, setSearchCriteria] = useState<TrackFormValues | null>(null);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Create a memoized reference to the document in the top-level 'complaints' collection
+  const complaintRef = useMemoFirebase(() => {
+    if (!firestore || !params.id) return null;
+    return doc(firestore, 'complaints', params.id);
+  }, [firestore, params.id]);
 
-  const form = useForm<TrackFormValues>({
-    resolver: zodResolver(TrackSchema),
-    defaultValues: { name: '', email: '' },
-  });
+  const { data: complaint, isLoading } = useDoc<Complaint>(complaintRef);
 
-  const onSubmit: SubmitHandler<TrackFormValues> = async (data) => {
-    if (!firestore) {
-        setError('Database connection not available.');
-        return;
-    }
-    setIsLoading(true);
-    setError(null);
-    setComplaints([]);
-    setSearchCriteria(data);
-
-    try {
-        const complaintsQuery = query(
-            collection(firestore, 'complaints'),
-            where('email', '==', data.email),
-            where('name', '==', data.name)
-        );
-        const querySnapshot = await getDocs(complaintsQuery);
-        const foundComplaints: Complaint[] = [];
-        querySnapshot.forEach(doc => {
-            foundComplaints.push({ id: doc.id, ...doc.data() } as Complaint);
-        });
-        setComplaints(foundComplaints);
-        if (foundComplaints.length === 0) {
-            setError("No complaints found for this name and email combination.");
-        }
-    } catch (e) {
-        console.error(e);
-        setError("An error occurred while fetching your complaints. The security rules might be preventing access.");
-    } finally {
-        setIsLoading(false);
-    }
-  };
+  if (isLoading) {
+    return <div>Loading complaint details...</div>;
+  }
+  
+  // After loading, if no complaint is found, show the not found page.
+  if (!complaint && !isLoading) {
+    notFound();
+  }
+  
+  // This check should now be redundant, but as a safeguard.
+  if (!complaint) {
+    return <div>Complaint not found.</div>
+  }
 
   return (
-    <>
+    <div>
       <div className="space-y-2 mb-8">
-        <h2 className="text-2xl font-bold tracking-tight">Track Your Complaint</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Complaint Details</h2>
         <p className="text-muted-foreground">
-          Enter your name and email to find your submitted complaints.
+          Viewing details for complaint ID:{' '}
+          <span className="font-mono">{params.id}</span>
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Find Complaints</CardTitle>
-            <CardDescription>Enter the details used during submission.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl><Input placeholder="you@example.com" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={isLoading}>{isLoading ? 'Searching...' : 'Search'}</Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Your Complaints</h3>
-            {isLoading && <p>Loading...</p>}
-            {error && <p className="text-destructive">{error}</p>}
-            {!isLoading && complaints.length > 0 && (
-                <div className="space-y-4 rounded-lg border p-4">
-                    {complaints.map(complaint => (
-                        <div key={complaint.id} className="flex justify-between items-center">
-                            <div>
-                                <p className="font-medium">{complaint.title}</p>
-                                <p className="text-sm text-muted-foreground">ID: {complaint.id}</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <ComplaintStatusBadge status={complaint.status} />
-                                {complaint.status === 'Resolved' && (
-                                    <FeedbackDialog complaint={complaint} />
-                                )}
-                            </div>
-                        </div>
-                    ))}
+      <div className="grid gap-8 md:grid-cols-3">
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex justify-between items-start">
+                <span>{complaint.title}</span>
+                <ComplaintStatusBadge status={complaint.status} />
+              </CardTitle>
+              <CardDescription>{complaint.description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Separator className="my-4" />
+              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span>
+                    Submitted by: <strong>{complaint.name}</strong>
+                  </span>
                 </div>
-            )}
-             {!isLoading && !error && searchCriteria && complaints.length === 0 && (
-                <p>No complaints found for the provided details.</p>
-            )}
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>
+                    Contact Email: <strong>{complaint.email}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span>
+                    Contact Phone: <strong>{complaint.phone}</strong>
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                { /* @ts-ignore */ }
+                <span>Submitted on {complaint.date ? new Date(complaint.date.seconds * 1000).toLocaleString() : 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span>{complaint.location}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <Badge variant="secondary">{complaint.category}</Badge>
+              </div>
+               <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <Badge variant={complaint.priority === 'High' ? 'destructive' : complaint.priority === 'Medium' ? 'default' : 'secondary'}>
+                  {complaint.priority} Priority
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {complaint.status === 'Resolved' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Feedback</CardTitle>
+                <CardDescription>
+                  How was your experience with this resolution?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FeedbackDialog complaint={complaint} />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

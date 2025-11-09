@@ -1,90 +1,140 @@
 'use client';
 
-import { useActionState, useOptimistic } from 'react';
-import { useFormStatus } from 'react-dom';
-import {
-  analyzeCitizenFeedbackSentiment,
-  type SentimentState,
-} from '@/lib/actions';
-import { Button } from '@/components/ui/button';
+import { notFound, usePathname, useRouter } from 'next/navigation';
+import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Bot } from 'lucide-react';
-import SentimentAnalysisResult from '@/components/sentiment-analysis-result';
+import { Separator } from '@/components/ui/separator';
+import { Calendar, Tag, MapPin, User, Mail, Phone, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import type { Complaint } from '@/lib/definitions';
+import { FeedbackDialog } from '@/components/feedback-dialog';
 
-export default function SentimentAnalyzerPage() {
-  const initialState: SentimentState = {
-    message: null,
-    errors: {},
-    analysis: null,
-  };
-  const [state, dispatch] = useActionState(
-    analyzeCitizenFeedbackSentiment,
-    initialState
-  );
+
+export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
+  const { firestore, user } = useFirebase();
+  const router = useRouter();
+
+  // Create a memoized reference to the document in the top-level 'complaints' collection
+  const complaintRef = useMemoFirebase(() => {
+    if (!firestore || !params.id) return null;
+    return doc(firestore, 'complaints', params.id);
+  }, [firestore, params.id]);
+
+  const { data: complaint, isLoading } = useDoc<Complaint>(complaintRef);
+
+  if (isLoading) {
+    return <div>Loading complaint details...</div>;
+  }
+  
+  // After loading, if no complaint is found, show the not found page.
+  if (!complaint && !isLoading) {
+    notFound();
+  }
+  
+  // This check should now be redundant, but as a safeguard.
+  if (!complaint) {
+    return <div>Complaint not found.</div>
+  }
 
   return (
-    <>
+    <div>
       <div className="space-y-2 mb-8">
-        <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Bot className="h-6 w-6 text-primary" /> AI Powered Sentiment Analyzer
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">Complaint Details</h2>
         <p className="text-muted-foreground">
-          Assess the sentiment of citizen feedback to better gauge urgent
-          concerns.
+          Viewing details for complaint ID:{' '}
+          <span className="font-mono">{params.id}</span>
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Analyze Feedback</CardTitle>
-            <CardDescription>
-              Enter a piece of citizen feedback below to analyze its sentiment.
-            </CardDescription>
-          </CardHeader>
-          <form action={dispatch}>
+      <div className="grid gap-8 md:grid-cols-3">
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex justify-between items-start">
+                <span>{complaint.title}</span>
+                <ComplaintStatusBadge status={complaint.status} />
+              </CardTitle>
+              <CardDescription>{complaint.description}</CardDescription>
+            </CardHeader>
             <CardContent>
-              <div className="grid w-full gap-2">
-                <Label htmlFor="feedbackText">Feedback Text</Label>
-                <Textarea
-                  id="feedbackText"
-                  name="feedbackText"
-                  placeholder="Type or paste citizen feedback here..."
-                  className="min-h-[150px]"
-                />
-                {state.errors?.feedbackText && (
-                  <p className="text-sm font-medium text-destructive">
-                    {state.errors.feedbackText[0]}
-                  </p>
-                )}
+              <Separator className="my-4" />
+              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  <span>
+                    Submitted by: <strong>{complaint.name}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>
+                    Contact Email: <strong>{complaint.email}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span>
+                    Contact Phone: <strong>{complaint.phone}</strong>
+                  </span>
+                </div>
               </div>
             </CardContent>
-            <CardFooter>
-              <SubmitButton />
-            </CardFooter>
-          </form>
-        </Card>
+          </Card>
+        </div>
 
-        <SentimentAnalysisResult state={state} />
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                { /* @ts-ignore */ }
+                <span>Submitted on {complaint.date ? new Date(complaint.date.seconds * 1000).toLocaleString() : 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span>{complaint.location}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <Badge variant="secondary">{complaint.category}</Badge>
+              </div>
+               <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <Badge variant={complaint.priority === 'High' ? 'destructive' : complaint.priority === 'Medium' ? 'default' : 'secondary'}>
+                  {complaint.priority} Priority
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {complaint.status === 'Resolved' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Feedback</CardTitle>
+                <CardDescription>
+                  How was your experience with this resolution?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FeedbackDialog complaint={complaint} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
-    </>
-  );
-}
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? 'Analyzing...' : 'Analyze Sentiment'}
-    </Button>
+    </div>
   );
 }

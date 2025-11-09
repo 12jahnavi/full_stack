@@ -37,27 +37,9 @@ export default function MainNav({
       role: 'all',
     },
     {
-      href: '/track',
-      label: 'Track Complaint',
-      active: pathname === '/track',
-      role: 'all',
-    },
-    {
       href: '/admin',
-      label: 'Complaints',
+      label: 'Admin Dashboard',
       active: pathname === '/admin',
-      role: 'admin',
-    },
-    {
-      href: '/admin/feedback',
-      label: 'Feedback',
-      active: pathname === '/admin/feedback',
-      role: 'admin',
-    },
-    {
-      href: '/sentiment-analyzer',
-      label: 'Sentiment Analyzer',
-      active: pathname === '/sentiment-analyzer',
       role: 'admin',
     },
   ];

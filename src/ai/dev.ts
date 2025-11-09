@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/analyze-citizen-feedback-sentiment.ts';
+// All flows are now imported directly where they are used.
+// This file is kept for potential future development.

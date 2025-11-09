@@ -12,18 +12,16 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Calendar, Tag, MapPin, User, Mail, Phone, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
+import { FeedbackDialog } from '@/components/feedback-dialog';
 
 
 export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const { firestore, user } = useFirebase();
-  const [citizenName, setCitizenName] = useState<string>('Unknown');
   const router = useRouter();
 
   // Create a memoized reference to the document in the top-level 'complaints' collection
@@ -33,27 +31,6 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
   }, [firestore, params.id]);
 
   const { data: complaint, isLoading } = useDoc<Complaint>(complaintRef);
-
-  // Fetch citizen data once the complaint data is loaded
-  useEffect(() => {
-    const fetchCitizenData = async () => {
-      if (firestore && complaint?.citizenId) {
-        const userDocRef = doc(firestore, 'citizens', complaint.citizenId);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setCitizenName(`${userData.firstName} ${userData.lastName}`);
-        } else {
-            setCitizenName('Unknown User');
-        }
-      }
-    };
-    
-    if (complaint) {
-      fetchCitizenData();
-    }
-  }, [firestore, complaint]);
-
 
   if (isLoading) {
     return <div>Loading complaint details...</div>;
@@ -95,7 +72,7 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   <span>
-                    Submitted by: <strong>{citizenName}</strong>
+                    Submitted by: <strong>{complaint.name}</strong>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -151,17 +128,8 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
                   How was your experience with this resolution?
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* A real app would use a form with a server action here */}
-                <div className="flex justify-around">
-                  {[1, 2, 3, 4, 5].map(rating => (
-                    <Button key={rating} variant="outline" size="icon">
-                      {rating}
-                    </Button>
-                  ))}
-                </div>
-                <Textarea placeholder="Add your comments..." />
-                <Button className="w-full">Submit Feedback</Button>
+              <CardContent>
+                <FeedbackDialog complaint={complaint} />
               </CardContent>
             </Card>
           )}
