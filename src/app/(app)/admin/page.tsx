@@ -55,7 +55,7 @@ export default function AdminDashboardPage() {
       complaint.title.toLowerCase().includes(queryParam.toLowerCase()) ||
       complaint.description.toLowerCase().includes(queryParam.toLowerCase()) ||
       complaint.id.toLowerCase().includes(queryParam.toLowerCase()) ||
-      complaint.name.toLowerCase().includes(queryParam.toLowerCase())
+      (complaint.name && complaint.name.toLowerCase().includes(queryParam.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredComplaints.length / itemsPerPage);
