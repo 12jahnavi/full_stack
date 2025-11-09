@@ -37,6 +37,7 @@ export default function AdminFeedbackPage() {
   }, [user, isUserLoading, router]);
 
   const allFeedbackQuery = useMemoFirebase(() => {
+    // CRITICAL FIX: Only run query if user is logged in
     if (!firestore || !user) return null;
     // The security rules ensure only admins can read this collection
     return query(collection(firestore, 'feedback'), orderBy('date', 'desc'));
