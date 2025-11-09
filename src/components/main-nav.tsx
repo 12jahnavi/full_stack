@@ -34,12 +34,24 @@ export default function MainNav({
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      role: 'citizen',
+      role: 'all',
+    },
+    {
+      href: '/track',
+      label: 'Track Complaint',
+      active: pathname === '/track',
+      role: 'all',
     },
     {
       href: '/admin',
-      label: 'Admin Dashboard',
+      label: 'Complaints',
       active: pathname === '/admin',
+      role: 'admin',
+    },
+    {
+      href: '/admin/feedback',
+      label: 'Feedback',
+      active: pathname === '/admin/feedback',
       role: 'admin',
     },
     {
@@ -51,10 +63,8 @@ export default function MainNav({
   ];
 
   const visibleRoutes = routes.filter(route => {
-    if (isAdmin) {
-      return route.role === 'admin';
-    }
-    return route.role === 'citizen';
+    if (route.role === 'all') return true;
+    return isAdmin && route.role === 'admin';
   });
 
   return (

@@ -52,13 +52,20 @@ service cloud.firestore {
      * @description Rule for the top-level /complaints/{complaintId} collection.
      * @path /complaints/{complaintId}
      * @principle Anyone can create. Admins can read all and update status.
+     * Citizens can query for their own complaints.
      */
     match /complaints/{complaintId} {
-      // READ (get): Admins can read any single complaint.
-      allow get: if isAdmin();
+      // READ (get): Admins can read any single complaint. Citizens can read their own.
+      allow get: if isAdmin() || (request.auth != null && resource.data.citizenId == request.auth.uid);
       
-      // READ (list): Only Admins can list all complaints.
-      allow list: if isAdmin();
+      // READ (list): Admins can list all. Citizens can only query by their email and name.
+      allow list: if isAdmin() || 
+                      (request.auth != null && 
+                       request.query.where.size() == 2 &&
+                       request.query.where[0][0] == 'email' &&
+                       request.query.where[0][1] == '==' &&
+                       request.query.where[1][0] == 'name' &&
+                       request.query.where[1][1] == '==');
 
       // WRITE (create): Any user (including anonymous) can create a complaint.
       // We check that the citizenId in the document matches the user's uid, even if anonymous.
@@ -71,9 +78,21 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // Feedback collection is no longer used.
+    /**
+     * @description Rule for the top-level /feedback/{feedbackId} collection.
+     * @path /feedback/{feedbackId}
+     * @principle Citizens can create feedback for their own complaints. Admins can read all.
+     */
     match /feedback/{feedbackId} {
-        allow read, write: if false;
+      // READ: Admins can read any feedback.
+      allow read: if isAdmin();
+      
+      // WRITE (create): Any authenticated user (including anonymous) can create feedback,
+      // as long as the citizenId in the feedback matches their own UID.
+      allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
+
+      // WRITE (update, delete): No one can update or delete feedback.
+      allow update, delete: if false;
     }
   }
 }

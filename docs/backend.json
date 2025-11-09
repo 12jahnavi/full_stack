@@ -144,7 +144,7 @@
         },
         "citizenId": {
           "type": "string",
-          "description": "Reference to Citizen. (Relationship: Citizen 1:N Feedback)"
+          "description": "The UID of the citizen who submitted the feedback."
         },
         "complaintId": {
           "type": "string",
@@ -158,9 +158,13 @@
           "type": "string",
           "description": "Comments provided by the citizen."
         },
-        "sentimentScore": {
+        "sentiment": {
+          "type": "string",
+          "description": "Sentiment of the feedback, determined by AI."
+        },
+        "sentimentConfidence": {
           "type": "number",
-          "description": "Sentiment score of the feedback comments, calculated by the AI Sentiment Analyzer.  Ranges from -1 (negative) to 1 (positive)."
+          "description": "AI confidence in the sentiment analysis."
         }
       },
       "required": [
@@ -213,46 +217,25 @@
         }
       },
       {
-        "path": "/citizens/{citizenId}/complaints/{complaintId}",
+        "path": "/complaints/{complaintId}",
         "definition": {
           "entityName": "Complaint",
           "schema": {
             "$ref": "#/backend/entities/Complaint"
           },
-          "description": "Stores complaints submitted by citizens. The 'citizenId' in the path matches the 'citizenId' property within the complaint document, enforcing ownership.",
-          "params": [
-            {
-              "name": "citizenId",
-              "description": "The Firebase Auth UID of the citizen who submitted the complaint."
-            },
-            {
-              "name": "complaintId",
-              "description": "The unique identifier of the complaint."
-            }
-          ]
+          "description": "Stores all complaints in a single top-level collection."
         }
       },
       {
-        "path": "/citizens/{citizenId}/feedback/{feedbackId}",
+        "path": "/feedback/{feedbackId}",
         "definition": {
           "entityName": "Feedback",
           "schema": {
             "$ref": "#/backend/entities/Feedback"
           },
-          "description": "Stores feedback submitted by citizens for specific complaints. The 'citizenId' in the path matches the 'citizenId' property within the feedback document, enforcing ownership.",
-          "params": [
-            {
-              "name": "citizenId",
-              "description": "The Firebase Auth UID of the citizen who submitted the feedback."
-            },
-            {
-              "name": "feedbackId",
-              "description": "The unique identifier of the feedback."
-            }
-          ]
+          "description": "Stores all feedback in a single top-level collection."
         }
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to provide a secure, scalable, and maintainable system for managing citizen complaints and feedback. The structure prioritizes authorization independence and clarity, adhering to the core design principles.  User data (Citizens and Admins) is stored in dedicated collections (`citizens` and `admins`) with path-based ownership for citizen-related data (complaints and feedback). This approach avoids hierarchical `get()` calls in security rules, enabling atomic operations and easier debugging.\n\nAuthorization Independence is achieved by avoiding hierarchical authorization dependencies. For example, the `complaints` subcollection under each `citizen` includes the `citizenId`. This denormalization allows us to check the complaint ownership directly without needing to `get()` the parent citizen document in the security rules.\n\nThe structure supports the required QAPs by using structural segregation and path-based ownership:\n\n*   **Path-Based Ownership:**  Complaints and Feedback are stored as subcollections under the respective Citizen document (`/citizens/{citizenId}/complaints/{complaintId}` and `/citizens/{citizenId}/feedback/{feedbackId}`).  This allows for simple security rules based on the `citizenId` path parameter.\n*   **Structural Segregation:** Citizen and Admin data are stored in separate top-level collections. This allows for distinct security rules tailored to each role.\n*   **Collection Groups**:  The use of collection groups is intentionally avoided in favor of explicit path-based rules.  If needed in the future for reporting, collection groups could be added, but the existing path structure should remain the primary means of enforcement."
+    ]
   }
 }

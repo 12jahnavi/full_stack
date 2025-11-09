@@ -26,9 +26,12 @@ export type Complaint = {
 export type Feedback = {
   id: string;
   complaintId: string;
+  citizenId: string;
   rating: 1 | 2 | 3 | 4 | 5;
   comments: string;
-  date: string;
+  date: Timestamp;
+  sentiment?: string;
+  sentimentConfidence?: number;
 };
 
 export const ComplaintCategories = ['Roads', 'Utilities', 'Parks', 'Public Transport', 'Other'] as const;
