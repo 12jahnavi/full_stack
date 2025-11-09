@@ -38,6 +38,12 @@ export default function MainNav({
       role: 'citizen', // Only for non-admins
     },
     {
+      href: '/track',
+      label: 'Track Complaint',
+      active: pathname.startsWith('/track'),
+      role: 'citizen',
+    },
+    {
       href: '/admin',
       label: 'Admin Dashboard',
       active: pathname === '/admin',
@@ -56,6 +62,7 @@ export default function MainNav({
     if (isAdmin) {
       return route.role === 'admin';
     }
+    // For anonymous or non-admin users
     return route.role === 'citizen';
   });
 
