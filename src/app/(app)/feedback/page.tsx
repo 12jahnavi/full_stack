@@ -8,9 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
   CardFooter,
 } from '@/components/ui/card';
 import {
@@ -35,7 +33,7 @@ import { useRouter } from 'next/navigation';
 
 
 const FeedbackSchema = z.object({
-  name: z.string().min(1, 'Please enter your name.'),
+  name: z.string().min(2, 'Name must be at least 2 characters.').regex(/^[a-zA-Z\s]+$/, { message: 'Name can only contain letters and spaces.' }),
   email: z.string().email('Please enter a valid email.'),
   complaintTitle: z.string().min(5, 'Please enter the title of your complaint.'),
   rating: z.number().min(1, 'Please select a rating of at least 1 star.'),
