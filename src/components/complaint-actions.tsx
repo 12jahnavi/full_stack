@@ -26,17 +26,26 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
+      setIsLoading(true);
       if (user && firestore) {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
-        setIsAdmin(adminDoc.exists());
+        const adminStatus = adminDoc.exists();
+        setIsAdmin(adminStatus);
+        setCanDelete(adminStatus || (user.uid === complaint.citizenId && complaint.status === 'Pending'));
+      } else {
+        setIsAdmin(false);
+        setCanDelete(user?.uid === complaint.citizenId && complaint.status === 'Pending');
       }
+      setIsLoading(false);
     };
     checkAdminStatus();
-  }, [user, firestore]);
+  }, [user, firestore, complaint.citizenId, complaint.status]);
 
   const handleDelete = () => {
     if (!firestore) {
@@ -95,15 +104,10 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     }
   };
 
-  // The user can delete their own complaint if it's pending.
-  // Admins can delete any complaint.
-  const canDelete =
-    isAdmin || (user?.uid === complaint.citizenId && complaint.status === 'Pending');
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
