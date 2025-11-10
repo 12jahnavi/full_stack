@@ -59,7 +59,6 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     ) {
       setIsPending(true);
       try {
-        // CORRECT: Use the non-blocking delete function
         const complaintDoc = doc(firestore, 'complaints', complaint.id);
         deleteDocumentNonBlocking(complaintDoc);
         toast({ title: 'Success', description: 'Complaint deleted.' });
@@ -101,7 +100,6 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     }
   };
   
-  // The delete button should only be visible to admins for resolved or rejected complaints.
   const canDelete = isAdmin && (complaint.status === 'Resolved' || complaint.status === 'Rejected');
 
   return (
