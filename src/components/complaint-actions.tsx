@@ -15,9 +15,9 @@ import {
   DropdownMenuPortal,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
-import { deleteComplaint, updateComplaintStatus } from '@/lib/data';
+import { updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
-import { useFirebase } from '@/firebase';
+import { useFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -38,7 +38,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     checkAdminStatus();
   }, [user, firestore]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!firestore) {
       toast({
         variant: 'destructive',
@@ -54,7 +54,8 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     ) {
       setIsPending(true);
       try {
-        await deleteComplaint(firestore, complaint.id);
+        const complaintDoc = doc(firestore, 'complaints', complaint.id);
+        deleteDocumentNonBlocking(complaintDoc);
         toast({ title: 'Success', description: 'Complaint deleted.' });
       } catch (error) {
         console.error(error);

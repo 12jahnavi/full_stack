@@ -34,7 +34,7 @@ import { useRouter } from 'next/navigation';
 const FeedbackSchema = z.object({
   name: z
     .string()
-    .min(2, 'Name must be at least 2 characters.')
+    .min(3, 'Name must be at least 3 characters.')
     .regex(/^[a-zA-Z\s]+$/, {
       message: 'Name can only contain letters and spaces.',
     }),
