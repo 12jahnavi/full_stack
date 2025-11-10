@@ -18,7 +18,7 @@ import {
 import { updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { useFirebase } from '@/firebase';
-import { deleteDocumentNonBlocking } from '@/firebase'; // CORRECTED IMPORT PATH
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 
