@@ -70,11 +70,8 @@ service cloud.firestore {
       // We check that the citizenId in the document matches the user's uid, even if anonymous.
       allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
 
-      // WRITE (update): Only admins can update any complaint (e.g. to change status).
-      allow update: if isAdmin();
-
-      // WRITE (delete): Only admins can delete any complaint.
-      allow delete: if isAdmin();
+      // WRITE (update, delete): Only admins can update or delete any complaint.
+      allow update, delete: if isAdmin();
     }
     
     /**
