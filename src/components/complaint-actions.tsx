@@ -18,7 +18,7 @@ import {
 import { updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { useFirebase } from '@/firebase';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking } from '@/firebase'; // CORRECTED IMPORT PATH
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -62,6 +62,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
       const complaintDoc = doc(firestore, 'complaints', complaint.id);
       deleteDocumentNonBlocking(complaintDoc);
       toast({ title: 'Success', description: 'Complaint deleted.' });
+      // The local cache and real-time listener will handle UI updates.
       setIsPending(false);
     }
   };
