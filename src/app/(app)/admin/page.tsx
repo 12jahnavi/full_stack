@@ -14,14 +14,13 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import {
   collection,
   query,
-  where,
   orderBy,
 } from 'firebase/firestore';
 import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
 import { ComplaintActions } from '@/components/complaint-actions';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 
@@ -41,13 +40,14 @@ export default function AdminDashboardPage() {
   const itemsPerPage = 10;
 
   const allComplaintsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null; // Prevent query if not logged in
+    // CRITICAL FIX: Only run query if user is logged in
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, user]);
 
   const { data: allComplaints, isLoading: isLoadingAll } = useCollection<Complaint>(allComplaintsQuery);
 
-  const filteredComplaints = useMemoFirebase(() => {
+  const filteredComplaints = useMemo(() => {
     if (!allComplaints) return [];
     if (!queryTerm) return allComplaints;
     return allComplaints.filter(complaint =>
