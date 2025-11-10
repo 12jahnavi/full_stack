@@ -26,26 +26,22 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [canDelete, setCanDelete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
       setIsLoading(true);
-      if (user && firestore) {
+      if (user && firestore && !user.isAnonymous) {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
-        const adminStatus = adminDoc.exists();
-        setIsAdmin(adminStatus);
-        setCanDelete(adminStatus || (user.uid === complaint.citizenId && complaint.status === 'Pending'));
+        setIsAdmin(adminDoc.exists());
       } else {
         setIsAdmin(false);
-        setCanDelete(user?.uid === complaint.citizenId && complaint.status === 'Pending');
       }
       setIsLoading(false);
     };
     checkAdminStatus();
-  }, [user, firestore, complaint.citizenId, complaint.status]);
+  }, [user, firestore]);
 
   const handleDelete = () => {
     if (!firestore) {
@@ -63,6 +59,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     ) {
       setIsPending(true);
       try {
+        // CORRECT: Use the non-blocking delete function
         const complaintDoc = doc(firestore, 'complaints', complaint.id);
         deleteDocumentNonBlocking(complaintDoc);
         toast({ title: 'Success', description: 'Complaint deleted.' });
@@ -103,6 +100,9 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
       setIsPending(false);
     }
   };
+  
+  // The delete button should only be visible to admins.
+  const canDelete = isAdmin;
 
   return (
     <DropdownMenu>
