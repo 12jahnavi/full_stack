@@ -17,7 +17,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
-import { useFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirebase } from '@/firebase';
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -58,20 +59,10 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
       )
     ) {
       setIsPending(true);
-      try {
-        const complaintDoc = doc(firestore, 'complaints', complaint.id);
-        deleteDocumentNonBlocking(complaintDoc);
-        toast({ title: 'Success', description: 'Complaint deleted.' });
-      } catch (error) {
-        console.error(error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to delete complaint.',
-        });
-      } finally {
-        setIsPending(false);
-      }
+      const complaintDoc = doc(firestore, 'complaints', complaint.id);
+      deleteDocumentNonBlocking(complaintDoc);
+      toast({ title: 'Success', description: 'Complaint deleted.' });
+      setIsPending(false);
     }
   };
 
