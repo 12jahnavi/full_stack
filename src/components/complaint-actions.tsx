@@ -18,9 +18,8 @@ import {
 import { updateComplaintStatus } from '@/lib/data';
 import { Complaint, ComplaintStatuses } from '@/lib/definitions';
 import { useFirebase } from '@/firebase';
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 
 export function ComplaintActions({ complaint }: { complaint: Complaint }) {
   const { user, firestore } = useFirebase();
@@ -44,7 +43,7 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     checkAdminStatus();
   }, [user, firestore]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!firestore) {
       toast({
         variant: 'destructive',
@@ -59,11 +58,21 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
       )
     ) {
       setIsPending(true);
-      const complaintDoc = doc(firestore, 'complaints', complaint.id);
-      deleteDocumentNonBlocking(complaintDoc);
-      toast({ title: 'Success', description: 'Complaint deleted.' });
-      // The local cache and real-time listener will handle UI updates.
-      setIsPending(false);
+      try {
+        const complaintDoc = doc(firestore, 'complaints', complaint.id);
+        await deleteDoc(complaintDoc);
+        toast({ title: 'Success', description: 'Complaint deleted.' });
+        // The real-time listener will handle UI updates.
+      } catch (error) {
+        console.error("Failed to delete complaint:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to delete complaint. You may not have permission.',
+        });
+      } finally {
+        setIsPending(false);
+      }
     }
   };
 
