@@ -101,8 +101,8 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
     }
   };
   
-  // The delete button should only be visible to admins.
-  const canDelete = isAdmin;
+  // The delete button should only be visible to admins for resolved or rejected complaints.
+  const canDelete = isAdmin && (complaint.status === 'Resolved' || complaint.status === 'Rejected');
 
   return (
     <DropdownMenu>
@@ -143,14 +143,17 @@ export function ComplaintActions({ complaint }: { complaint: Complaint }) {
         )}
 
         {canDelete && (
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={handleDelete}
-            disabled={isPending}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
