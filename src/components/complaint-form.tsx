@@ -30,7 +30,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 
 const FormSchema = z.object({
-  name: z.string().min(2, { message: 'Please enter your name.' }),
+  name: z.string()
+    .min(3, { message: 'Name must be at least 3 characters.' })
+    .regex(/^[a-zA-Z\s]+$/, { message: 'Name can only contain letters and spaces.' }),
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   category: z.enum(ComplaintCategories, {
     required_error: 'Please select a category.',

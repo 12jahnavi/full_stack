@@ -38,7 +38,7 @@ const FeedbackSchema = z.object({
   name: z.string().min(1, 'Please enter your name.'),
   email: z.string().email('Please enter a valid email.'),
   complaintTitle: z.string().min(5, 'Please enter the title of your complaint.'),
-  rating: z.number().min(1, 'Please select a rating.'),
+  rating: z.number().min(1, 'Please select a rating of at least 1 star.'),
   comments: z
     .string()
     .min(10, 'Comments must be at least 10 characters long.'),
