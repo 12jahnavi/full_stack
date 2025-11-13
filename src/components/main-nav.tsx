@@ -40,20 +40,13 @@ export default function MainNav({
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      // Visible to everyone who is not an admin
-      visible: !isAdmin,
-    },
-     {
-      href: '/feedback',
-      label: 'Submit Feedback',
-      active: pathname === '/feedback',
-       // Visible to everyone who is not an admin
-      visible: !isAdmin,
+      // Visible to everyone
+      visible: true,
     },
     {
       href: '/admin',
       label: 'Admin Dashboard',
-      active: pathname === '/admin',
+      active: pathname.startsWith('/admin'),
       // Only for admins
       visible: isAdmin,
     },
