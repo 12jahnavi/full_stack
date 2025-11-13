@@ -5,7 +5,7 @@
  *
  * - analyzeCitizenFeedbackSentiment - A function that analyzes the sentiment of citizen feedback.
  * - AnalyzeCitizenFeedbackSentimentInput - The input type for the analyzeCitizenFeedbackSentiment function.
- * - AnalyzeCitizenFeedbackSentimentOutput - The return type for the analyzeCitizenFeedbackSentiment function.
+ * - AnalyzeCitizenFeedbackSentimentOutput - The return type for the analyzeCitizenfeedbackSentiment function.
  */
 
 import {ai} from '@/ai/genkit';

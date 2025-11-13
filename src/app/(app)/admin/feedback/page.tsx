@@ -111,7 +111,7 @@ export default function AdminFeedbackPage() {
             <TableRow>
               <TableHead>Complaint Title</TableHead>
               <TableHead>Rating</TableHead>
-              <TableHead>Comments</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead>Sentiment</TableHead>
               <TableHead>Date</TableHead>
             </TableRow>
@@ -137,7 +137,7 @@ export default function AdminFeedbackPage() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{item.comments}</TableCell>
+                  <TableCell className="max-w-xs truncate">{item.description}</TableCell>
                   <TableCell>{getSentimentBadge(item.sentiment)}</TableCell>
                   <TableCell>
                     {item.date

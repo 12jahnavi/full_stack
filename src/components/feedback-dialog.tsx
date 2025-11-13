@@ -38,10 +38,9 @@ import {
 
 const FeedbackSchema = z.object({
   rating: z.number().min(1, 'Please select a rating.'),
-  comments: z
+  description: z
     .string()
-    .min(10, 'Comments must be at least 10 characters long.'),
-  suggestions: z.string().optional(),
+    .min(10, 'Description must be at least 10 characters long.'),
 });
 
 type FeedbackFormValues = z.infer<typeof FeedbackSchema>;
@@ -56,8 +55,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
   const form = useForm<FeedbackFormValues>({
     resolver: zodResolver(FeedbackSchema),
     defaultValues: { 
-      comments: '', 
-      suggestions: '',
+      description: '', 
       rating: 0,
     },
   });
@@ -76,7 +74,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
     try {
       // 1. Analyze sentiment first, as it's an external call
       const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
-        await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
+        await analyzeCitizenFeedbackSentiment({ feedbackText: data.description });
 
       // 2. Prepare feedback data for Firestore
       const feedbackData = {
@@ -86,8 +84,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         name: complaint.name, // Carry over citizen's name
         email: complaint.email, // Carry over citizen's email
         rating: data.rating,
-        comments: data.comments,
-        suggestions: data.suggestions,
+        description: data.description,
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
@@ -191,33 +188,15 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
             
             <FormField
                 control={form.control}
-                name="comments"
+                name="description"
                 render={({ field }) => (
                 <FormItem>
-                    <Label>Comments</Label>
+                    <Label>Description</Label>
                     <FormControl>
                         <Textarea
-                            id="comments"
-                            placeholder="Your comments..."
+                            id="description"
+                            placeholder="Your description..."
                             {...field}
-                        />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-
-            <FormField
-                control={form.control}
-                name="suggestions"
-                render={({ field }) => (
-                <FormItem>
-                    <Label>Suggestions (Optional)</Label>
-                    <FormControl>
-                        <Textarea
-                            id="suggestions"
-                            placeholder="Any suggestions for improvement?"
-                           {...field}
                         />
                     </FormControl>
                     <FormMessage />

@@ -31,7 +31,7 @@ export type Feedback = {
   name: string;
   email: string;
   rating: number; // Allow any number for validation
-  comments: string;
+  description: string;
   date: Timestamp | any; // Allow for serverTimestamp
   sentiment?: string;
   sentimentConfidence?: number;
