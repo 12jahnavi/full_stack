@@ -18,6 +18,12 @@ export default function MainNav({
 
   const routes = [
     {
+      href: '/',
+      label: 'Home',
+      active: pathname === '/',
+      visible: true,
+    },
+    {
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
@@ -26,7 +32,13 @@ export default function MainNav({
     {
       href: '/admin',
       label: 'Admin Dashboard',
-      active: pathname.startsWith('/admin'),
+      active: pathname.startsWith('/admin') && !pathname.startsWith('/admin/feedback'),
+      visible: isAdmin,
+    },
+    {
+      href: '/admin/feedback',
+      label: 'Feedback',
+      active: pathname === '/admin/feedback',
       visible: isAdmin,
     },
   ];

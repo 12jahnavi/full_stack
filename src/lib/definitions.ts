@@ -23,6 +23,18 @@ export type Complaint = {
   imageUrl?: string;
 };
 
+export type Feedback = {
+  id: string;
+  citizenId: string;
+  name: string;
+  phone: string;
+  email: string;
+  title: string;
+  rating: number;
+  suggestions?: string;
+  date: Timestamp;
+};
+
 export const ComplaintCategories = ['Roads', 'Utilities', 'Parks', 'Public Transport', 'Other'] as const;
 export const ComplaintPriorities = ['Low', 'Medium', 'High'] as const;
 export const ComplaintStatuses = ['Pending', 'In Progress', 'Resolved', 'Rejected'] as const;

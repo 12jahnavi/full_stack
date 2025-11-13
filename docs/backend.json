@@ -131,6 +131,62 @@
         "date",
         "status"
       ]
+    },
+    "Feedback": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Feedback",
+      "type": "object",
+      "description": "Represents feedback submitted by a citizen.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Feedback entity."
+        },
+        "citizenId": {
+          "type": "string",
+          "description": "The UID of the citizen who submitted the feedback."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the person giving feedback."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the person."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email of the person."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the complaint the feedback is for."
+        },
+        "rating": {
+          "type": "number",
+          "description": "A rating from 1 to 5."
+        },
+        "suggestions": {
+          "type": "string",
+          "description": "Optional suggestions or comments."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date the feedback was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "citizenId",
+        "name",
+        "phone",
+        "email",
+        "title",
+        "rating",
+        "date"
+      ]
     }
   },
   "auth": {
@@ -181,6 +237,16 @@
             "$ref": "#/backend/entities/Complaint"
           },
           "description": "Stores all complaints in a single top-level collection."
+        }
+      },
+      {
+        "path": "/feedback/{feedbackId}",
+        "definition": {
+          "entityName": "Feedback",
+          "schema": {
+            "$ref": "#/backend/entities/Feedback"
+          },
+          "description": "Stores all feedback in a single top-level collection."
         }
       }
     ]

@@ -9,10 +9,11 @@ import {
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
-import type { Complaint } from './definitions';
+import type { Complaint, Feedback } from './definitions';
 
 // This now includes name, email, and phone
 export type ComplaintFormData = Omit<Complaint, 'id' | 'date' | 'status' | 'citizenId'>;
+export type FeedbackFormData = Omit<Feedback, 'id' | 'date' | 'citizenId'>;
 
 /**
  * Creates a new complaint document in Firestore and returns its ID.
@@ -65,4 +66,27 @@ export async function deleteComplaint(
 ) {
   const complaintDoc = doc(firestore, 'complaints', complaintId);
   await deleteDoc(complaintDoc);
+}
+
+
+/**
+ * Creates a new feedback document in Firestore.
+ * This is a client-side function.
+ * @param firestore - The Firestore instance.
+ * @param citizenId - The ID of the user submitting the feedback.
+ * @param data - The feedback form data.
+ * @returns The ID of the newly created feedback document.
+ */
+export async function createFeedback(
+  firestore: Firestore,
+  citizenId: string,
+  data: FeedbackFormData
+): Promise<string> {
+  const feedbackCollection = collection(firestore, 'feedback');
+  const newDocRef = await addDoc(feedbackCollection, {
+    ...data,
+    citizenId,
+    date: serverTimestamp(),
+  });
+  return newDocRef.id;
 }

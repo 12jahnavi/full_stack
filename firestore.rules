@@ -68,5 +68,19 @@ service cloud.firestore {
       // WRITE (update, delete): Only admins can update or delete any complaint.
       allow update, delete: if isAdmin();
     }
+
+    /**
+     * @description Rule for the top-level /feedback/{feedbackId} collection.
+     */
+    match /feedback/{feedbackId} {
+      // READ (get, list): Only admins can read feedback.
+      allow read: if isAdmin();
+
+      // WRITE (create): Any authenticated user (including anonymous) can create feedback.
+      allow create: if isAuthenticated() && request.resource.data.citizenId == request.auth.uid;
+
+      // WRITE (update, delete): No one can update or delete feedback for now.
+      allow update, delete: if false;
+    }
   }
 }

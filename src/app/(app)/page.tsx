@@ -3,16 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Megaphone, ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import FeedbackForm from '@/components/feedback-form';
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-        <AppLogo />
-        <Button asChild variant="outline">
-          <Link href="/login">Admin Login</Link>
-        </Button>
-      </header>
+    <div className="flex flex-col">
       <main className="flex-grow">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
           <div className="container px-4 md:px-6">
@@ -39,6 +34,24 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section id="feedback" className="w-full py-12 md:py-24 lg:py-32 bg-background">
+           <div className="container px-4 md:px-6">
+             <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                <div className="space-y-2">
+                    <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">
+                    Share Your Feedback
+                    </h2>
+                    <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                    Have a general comment or suggestion? Let us know what you think.
+                    </p>
+                </div>
+             </div>
+             <div className="mx-auto max-w-4xl mt-12">
+                <FeedbackForm />
+             </div>
+           </div>
         </section>
 
         <section className="w-full py-12 md:py-24 bg-muted">
