@@ -69,6 +69,7 @@ export default function StandaloneFeedbackPage() {
     },
   });
 
+  // CORRECTED QUERY: This now matches the security rules.
   const resolvedComplaintsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'complaints'), where('status', '==', 'Resolved'));
