@@ -26,6 +26,15 @@ import {
   analyzeCitizenFeedbackSentiment,
   type AnalyzeCitizenFeedbackSentimentOutput,
 } from '@/ai/flows/analyze-citizen-feedback-sentiment';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormMessage,
+} from '@/components/ui/form';
 
 const FeedbackSchema = z.object({
   rating: z.number().min(1, 'Please select a rating.'),
@@ -65,13 +74,12 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
 
     setIsSubmitting(true);
     try {
-      // 1. Analyze sentiment
+      // 1. Analyze sentiment first, as it's an external call
       const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
         await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
 
-      // 2. Save feedback to Firestore
-      const feedbackCollection = collection(firestore, 'feedback');
-      await addDoc(feedbackCollection, {
+      // 2. Prepare feedback data for Firestore
+      const feedbackData = {
         complaintId: complaint.id,
         complaintTitle: complaint.title, // Store the title with the feedback
         citizenId: user.uid,
@@ -84,23 +92,46 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
-      });
+      };
 
-      toast({
-        title: 'Thank you!',
-        description: 'Your feedback has been submitted.',
-      });
-      setIsOpen(false);
-      form.reset();
-      setRating(0);
+      // 3. Save feedback to Firestore using a non-blocking call with error handling
+      const feedbackCollection = collection(firestore, 'feedback');
+      addDoc(feedbackCollection, feedbackData)
+        .then(() => {
+          toast({
+            title: 'Thank you!',
+            description: 'Your feedback has been submitted.',
+          });
+          setIsOpen(false);
+          form.reset();
+          setRating(0);
+          setIsSubmitting(false);
+        })
+        .catch(async (serverError) => {
+          // This is where the contextual error is created and emitted
+          const permissionError = new FirestorePermissionError({
+            path: feedbackCollection.path,
+            operation: 'create',
+            requestResourceData: feedbackData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          // Also show a generic error to the user in the UI
+          toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description: 'Could not submit your feedback due to a permission issue.',
+          });
+          setIsSubmitting(false);
+        });
+
     } catch (error) {
+      // This will catch errors from the sentiment analysis call or other synchronous code
       console.error('Failed to submit feedback:', error);
       toast({
         variant: 'destructive',
         title: 'Submission Failed',
-        description: 'Could not submit your feedback. Please try again.',
+        description: 'An unexpected error occurred. Please try again.',
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -116,6 +147,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         <Button>Submit Feedback</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
+        <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle>Feedback for: {complaint.title}</DialogTitle>
@@ -205,6 +237,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
             </Button>
           </DialogFooter>
         </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
