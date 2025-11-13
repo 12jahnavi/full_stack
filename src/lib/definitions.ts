@@ -28,6 +28,8 @@ export type Feedback = {
   complaintId: string;
   complaintTitle?: string;
   citizenId: string;
+  citizenName?: string;
+  citizenEmail?: string;
   rating: number;
   comments: string;
   date: Timestamp | any; // Allow for serverTimestamp

@@ -72,15 +72,15 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
 
     setIsSubmitting(true);
     try {
-      // 1. Analyze sentiment first, as it's an external call
       const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
         await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
 
-      // 2. Prepare feedback data for Firestore
       const feedbackData = {
         complaintId: complaint.id,
         complaintTitle: complaint.title,
         citizenId: user.uid,
+        citizenName: complaint.name, 
+        citizenEmail: complaint.email, 
         rating: data.rating,
         comments: data.comments,
         date: serverTimestamp(),
@@ -88,41 +88,34 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         sentimentConfidence: sentimentResult.confidence,
       };
 
-      // 3. Save feedback to Firestore using a non-blocking call with error handling
       const feedbackCollection = collection(firestore, 'feedback');
-      addDoc(feedbackCollection, feedbackData)
-        .then(() => {
-          toast({
-            title: 'Thank you!',
-            description: 'Your feedback has been submitted successfully!',
-          });
-          setIsOpen(false);
-          form.reset();
-          setRating(0);
-          setIsSubmitting(false);
-        })
-        .catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-            path: feedbackCollection.path,
-            operation: 'create',
-            requestResourceData: feedbackData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          toast({
-            variant: 'destructive',
-            title: 'Submission Failed',
-            description: 'Could not submit your feedback due to a permission issue.',
-          });
-          setIsSubmitting(false);
-        });
+      await addDoc(feedbackCollection, feedbackData);
 
-    } catch (error) {
-      console.error('Failed to submit feedback:', error);
       toast({
-        variant: 'destructive',
-        title: 'Submission Failed',
-        description: 'An unexpected error occurred. Please try again.',
+        title: 'Thank you!',
+        description: 'Your feedback has been submitted successfully!',
       });
+      setIsOpen(false);
+      form.reset();
+      setRating(0);
+      setIsSubmitting(false);
+
+    } catch (error: any) {
+      if (error instanceof FirestorePermissionError) {
+        errorEmitter.emit('permission-error', error);
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: 'Could not submit your feedback due to a permission issue.',
+        });
+      } else {
+         console.error('Failed to submit feedback:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Submission Failed',
+          description: 'An unexpected error occurred. Please try again.',
+        });
+      }
       setIsSubmitting(false);
     }
   };
@@ -143,7 +136,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
           <DialogHeader>
             <DialogTitle>Feedback for: {complaint.title}</DialogTitle>
             <DialogDescription>
-              Let us know how we did with resolving your complaint.
+              Let us know how we did with resolving this issue. Your feedback is valuable.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -190,7 +183,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
                     <FormControl>
                         <Textarea
                             id="comments"
-                            placeholder="Your comments..."
+                            placeholder="Please provide a detailed description of your feedback."
                             {...field}
                         />
                     </FormControl>

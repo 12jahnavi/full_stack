@@ -18,15 +18,18 @@ import { Label } from '@/components/ui/label';
 import { ArrowRight } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { useFirebase } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
+  const { toast } = useToast();
   const [errorMessage, setErrorMessage] = useState<string | undefined>(
     undefined
   );
+  const [email, setEmail] = useState('');
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,7 +39,6 @@ export default function LoginPage() {
       return;
     }
     const formData = new FormData(event.currentTarget);
-    const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
     try {
@@ -47,22 +49,14 @@ export default function LoginPage() {
       );
       const user = userCredential.user;
 
-      // Check if the user is an admin
       const adminDocRef = doc(firestore, 'admins', user.uid);
       const adminDoc = await getDoc(adminDocRef);
 
       if (adminDoc.exists()) {
         router.push('/admin');
       } else {
-        // Assume citizen if not an admin
-        const citizenDocRef = doc(firestore, 'citizens', user.uid);
-        const citizenDoc = await getDoc(citizenDocRef);
-        if (citizenDoc.exists()) {
-            router.push('/dashboard');
-        } else {
-            setErrorMessage('User profile not found. Please sign up.');
-            auth.signOut();
-        }
+        await auth.signOut();
+        setErrorMessage('This login is for administrators only.');
       }
     } catch (error: any) {
       if (
@@ -78,14 +72,36 @@ export default function LoginPage() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (!auth) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Firebase not initialized.' });
+        return;
+    }
+    if (!email) {
+        toast({ variant: 'destructive', title: 'Email required', description: 'Please enter your email address to reset your password.' });
+        return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        toast({ title: 'Password Reset Email Sent', description: `An email has been sent to ${email} with password reset instructions.` });
+    } catch (error: any) {
+        console.error(error);
+        if (error.code === 'auth/user-not-found') {
+            toast({ variant: 'destructive', title: 'User Not Found', description: 'No admin account found with this email.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to send password reset email.' });
+        }
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center space-y-6 w-[400px]">
       <AppLogo />
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Login</CardTitle>
+          <CardTitle>Admin Login</CardTitle>
           <CardDescription>
-            Enter your credentials to access your dashboard.
+            Enter your credentials to access the admin dashboard.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin} className="space-y-4">
@@ -98,10 +114,17 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Button variant="link" type="button" onClick={handlePasswordReset} className="h-auto p-0 text-xs">
+                    Forgot Password?
+                </Button>
+              </div>
               <Input id="password" name="password" type="password" required />
             </div>
             {errorMessage && (
@@ -114,12 +137,6 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <LoginButton />
-            <div className="text-center text-sm">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
-            </div>
           </CardFooter>
         </form>
       </Card>

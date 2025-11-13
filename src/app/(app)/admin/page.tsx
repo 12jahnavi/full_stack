@@ -34,9 +34,9 @@ export default function AdminDashboardPage() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    if (isUserLoading) return; // Wait until auth state is determined
+    if (isUserLoading) return;
 
-    if (!user) {
+    if (!user || user.isAnonymous) {
       router.push('/login');
       return;
     }
@@ -47,10 +47,12 @@ export default function AdminDashboardPage() {
             if (adminDoc.exists()) {
                 setIsAdmin(true);
             } else {
-                router.push('/complaints/new'); // Redirect non-admins
+                // If user is logged in but not an admin, sign them out and redirect
+                await auth.signOut();
+                router.push('/login');
             }
         }
-        setAuthChecked(true); // Mark that we have checked admin status
+        setAuthChecked(true);
     };
     
     checkAdmin();
@@ -62,7 +64,6 @@ export default function AdminDashboardPage() {
   const itemsPerPage = 10;
 
   const allComplaintsQuery = useMemoFirebase(() => {
-    // Only run query if auth has been checked and user is an admin
     if (!firestore || !authChecked || !isAdmin) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, authChecked, isAdmin]);
@@ -87,7 +88,6 @@ export default function AdminDashboardPage() {
     currentPage * itemsPerPage
   );
 
-  // Show loading state until we've confirmed the user's admin status
   const isLoading = isUserLoading || !authChecked || isLoadingAll;
 
   if (isLoading) {
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
                   <TableCell className="font-mono text-xs">
                     {complaint.id.substring(0, 5)}...
                   </TableCell>
-                   <TableCell className="font-medium">{complaint.name}</TableCell>
+                   <TableCell className="font-medium">{complaint.name || 'N/A'}</TableCell>
                   <TableCell className="max-w-xs truncate">{complaint.title}</TableCell>
                   <TableCell>{complaint.category}</TableCell>
                    <TableCell>

@@ -11,14 +11,15 @@ import {
 } from 'firebase/firestore';
 import type { Complaint } from './definitions';
 
-type ComplaintFormData = Omit<Complaint, 'id' | 'date' | 'status' | 'citizenId'>;
+// This now includes name, email, and phone
+export type ComplaintFormData = Omit<Complaint, 'id' | 'date' | 'status' | 'citizenId'>;
 
 /**
  * Creates a new complaint document in Firestore and returns its ID.
  * This is a client-side function.
  * @param firestore - The Firestore instance.
  * @param citizenId - The ID of the user submitting the complaint.
- * @param data - The complaint form data.
+ * @param data - The complaint form data, which now includes personal info.
  * @returns The ID of the newly created complaint document.
  */
 export async function createComplaint(

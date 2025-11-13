@@ -19,23 +19,22 @@ import { useRouter } from 'next/navigation';
 import { Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-// Extending Feedback to include a potential date as Timestamp
 interface FeedbackWithTimestamp extends Omit<Feedback, 'date'> {
     date?: Timestamp;
     complaintTitle?: string;
 }
 
 export default function AdminFeedbackPage() {
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { firestore, auth, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAdmin, setIsAdmin] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    if (isUserLoading) return; // Wait until auth state is determined
+    if (isUserLoading) return;
 
-    if (!user) {
+    if (!user || user.isAnonymous) {
       router.push('/login');
       return;
     }
@@ -46,20 +45,19 @@ export default function AdminFeedbackPage() {
             if (adminDoc.exists()) {
                 setIsAdmin(true);
             } else {
-                router.push('/'); // Redirect non-admins to home
+                 await auth.signOut();
+                router.push('/login');
             }
         }
-        setAuthChecked(true); // Mark that we have checked admin status
+        setAuthChecked(true);
     };
     
     checkAdmin();
 
-  }, [user, isUserLoading, router, firestore]);
+  }, [user, isUserLoading, router, firestore, auth]);
 
   const allFeedbackQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Only run query if auth has been checked and user is an admin
     if (!firestore || !authChecked || !isAdmin) return null;
-    // The security rules ensure only admins can read this collection
     return query(collection(firestore, 'feedback'), orderBy('date', 'desc'));
   }, [firestore, authChecked, isAdmin]);
 
