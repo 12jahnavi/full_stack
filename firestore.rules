@@ -5,6 +5,7 @@
  * This ruleset allows anyone (including anonymous users) to create complaints.
  * Only authenticated administrators can read the full list of complaints and
  * modify their status. Citizen data is no longer stored, and complaints
+
  * are in a single top-level collection.
  *
  */
@@ -60,9 +61,9 @@ service cloud.firestore {
       
       // READ (list): Admins can list all. Any user (including anon) can query for resolved complaints.
       allow list: if isAdmin() || 
-                      (request.query.where[0].fieldPath == 'status' &&
-                       request.query.where[0].op == '==' &&
-                       request.query.where[0].value == 'Resolved');
+                      (request.query.where[0][0] == 'status' &&
+                       request.query.where[0][1] == '==' &&
+                       request.query.where[0][2] == 'Resolved');
 
       // WRITE (create): Any user (including anonymous) can create a complaint.
       // We check that the citizenId in the document matches the user's uid, even if anonymous.
