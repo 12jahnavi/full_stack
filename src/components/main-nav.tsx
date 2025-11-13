@@ -40,6 +40,12 @@ export default function MainNav({
       role: 'citizen',
     },
     {
+      href: '/feedback',
+      label: 'Submit Feedback',
+      active: pathname === '/feedback',
+      role: 'citizen',
+    },
+    {
       href: '/admin',
       label: 'Admin Dashboard',
       active: pathname === '/admin',

@@ -1,0 +1,337 @@
+'use client';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { useFirebase, useMemoFirebase } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import {
+  addDoc,
+  collection,
+  query,
+  where,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import type { Complaint, Feedback } from '@/lib/definitions';
+import { Star } from 'lucide-react';
+import {
+  analyzeCitizenFeedbackSentiment,
+  type AnalyzeCitizenFeedbackSentimentOutput,
+} from '@/ai/flows/analyze-citizen-feedback-sentiment';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+const FeedbackFormSchema = z.object({
+  complaintId: z.string().min(1, 'Please select a complaint.'),
+  name: z
+    .string()
+    .min(3, { message: 'Name must be at least 3 characters.' })
+    .regex(/^[a-zA-Z\s]*$/, {
+      message: 'Name should not contain numbers or special characters.',
+    }),
+  email: z.string().email({ message: 'Please enter a valid email.' }),
+  rating: z.number().min(1, 'Please provide a rating.'),
+  comments: z
+    .string()
+    .min(10, { message: 'Comments must be at least 10 characters long.' }),
+  suggestions: z.string().optional(),
+});
+
+type FeedbackFormValues = z.infer<typeof FeedbackFormSchema>;
+
+export default function StandaloneFeedbackPage() {
+  const { user, firestore } = useFirebase();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rating, setRating] = useState(0);
+
+  const form = useForm<FeedbackFormValues>({
+    resolver: zodResolver(FeedbackFormSchema),
+    defaultValues: {
+      complaintId: '',
+      name: '',
+      email: '',
+      rating: 0,
+      comments: '',
+      suggestions: '',
+    },
+  });
+
+  // This is the corrected query that only fetches resolved complaints.
+  const resolvedComplaintsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'complaints'),
+      where('status', '==', 'Resolved')
+    );
+  }, [firestore]);
+
+  const { data: resolvedComplaints, isLoading: isLoadingComplaints } =
+    useCollection<Complaint>(resolvedComplaintsQuery);
+
+  const selectedComplaintId = form.watch('complaintId');
+
+  async function onSubmit(data: FeedbackFormValues) {
+    if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Connection not ready. Please try again.',
+      });
+      return;
+    }
+    
+    const selectedComplaint = resolvedComplaints?.find(c => c.id === data.complaintId);
+    if (!selectedComplaint) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Selected complaint not found.' });
+        return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
+        await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
+
+      const feedbackData = {
+        complaintId: data.complaintId,
+        complaintTitle: selectedComplaint.title,
+        citizenId: user.uid,
+        name: data.name,
+        email: data.email,
+        rating: data.rating,
+        comments: data.comments,
+        suggestions: data.suggestions,
+        resolvedBy: 'Admin', // Placeholder
+        date: serverTimestamp(),
+        sentiment: sentimentResult.sentiment,
+        sentimentConfidence: sentimentResult.confidence,
+      };
+
+      const feedbackCollection = collection(firestore, 'feedback');
+      addDoc(feedbackCollection, feedbackData)
+        .then(() => {
+          toast({
+            title: 'Thank you!',
+            description: 'Your feedback has been submitted successfully.',
+          });
+          router.push('/');
+        })
+        .catch(async serverError => {
+          const permissionError = new FirestorePermissionError({
+            path: feedbackCollection.path,
+            operation: 'create',
+            requestResourceData: feedbackData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          toast({
+            variant: 'destructive',
+            title: 'Submission Failed',
+            description:
+              'Could not submit your feedback due to a permission issue.',
+          });
+          setIsSubmitting(false);
+        });
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'An unexpected error occurred. Please try again.',
+      });
+      setIsSubmitting(false);
+    }
+  }
+  
+  const handleRating = (rate: number) => {
+    setRating(rate);
+    form.setValue('rating', rate, { shouldValidate: true });
+  };
+
+  return (
+    <div>
+      <div className="space-y-2 mb-8">
+        <h2 className="text-2xl font-bold tracking-tight">Submit Feedback</h2>
+        <p className="text-muted-foreground">
+          Select a resolved complaint and let us know how we did.
+        </p>
+      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Feedback Form</CardTitle>
+              <CardDescription>Your feedback helps us improve our services.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6">
+              <FormField
+                control={form.control}
+                name="complaintId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Resolved Complaint</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={isLoadingComplaints}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingComplaints ? "Loading complaints..." : "Select a resolved complaint"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {resolvedComplaints && resolvedComplaints.length > 0 ? (
+                          resolvedComplaints.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.title}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No resolved complaints found.
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Jane Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="you@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <FormLabel>Rating</FormLabel>
+                <div className="flex justify-start space-x-1">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleRating(star)}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        className={`h-8 w-8 cursor-pointer ${
+                          star <= rating
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                 <FormField
+                    control={form.control}
+                    name="rating"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormControl>
+                            <Input type="hidden" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                  />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="comments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comments</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Your comments..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="suggestions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Suggestions (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any suggestions for improvement?"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+              <Button type="submit" disabled={isSubmitting || !selectedComplaintId}>
+                {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
+    </div>
+  );
+}
