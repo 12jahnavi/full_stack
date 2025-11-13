@@ -11,8 +11,8 @@ import {
 import Pagination from '@/components/pagination';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
-import { useEffect } from 'react';
+import { collection, query, orderBy, Timestamp, getDoc, doc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import type { Feedback } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
@@ -29,19 +29,39 @@ export default function AdminFeedbackPage() {
   const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (isUserLoading) return; // Wait until auth state is determined
+
+    if (!user) {
       router.push('/login');
+      return;
     }
-  }, [user, isUserLoading, router]);
+
+    const checkAdmin = async () => {
+        if (firestore) {
+            const adminDoc = await getDoc(doc(firestore, 'admins', user.uid));
+            if (adminDoc.exists()) {
+                setIsAdmin(true);
+            } else {
+                router.push('/'); // Redirect non-admins to home
+            }
+        }
+        setAuthChecked(true); // Mark that we have checked admin status
+    };
+    
+    checkAdmin();
+
+  }, [user, isUserLoading, router, firestore]);
 
   const allFeedbackQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Only run query if user is logged in
-    if (!firestore || !user) return null;
+    // CRITICAL FIX: Only run query if auth has been checked and user is an admin
+    if (!firestore || !authChecked || !isAdmin) return null;
     // The security rules ensure only admins can read this collection
     return query(collection(firestore, 'feedback'), orderBy('date', 'desc'));
-  }, [firestore, user]);
+  }, [firestore, authChecked, isAdmin]);
 
   const { data: feedback, isLoading: isLoadingFeedback } =
     useCollection<FeedbackWithTimestamp>(allFeedbackQuery);
@@ -69,7 +89,9 @@ export default function AdminFeedbackPage() {
     }
   };
 
-  if (isUserLoading || isLoadingFeedback) {
+  const isLoading = isUserLoading || !authChecked || isLoadingFeedback;
+
+  if (isLoading) {
     return <div className="h-24 text-center">Loading Feedback...</div>;
   }
 
