@@ -13,12 +13,12 @@ export default function MainNav({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const { user, firestore } = useFirebase();
+  const { user, firestore, isUserLoading } = useFirebase();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      // CRITICAL FIX: Only check for admin status if the user is signed in (not anonymous)
+      // Only check for admin status if the user is signed in (not anonymous)
       if (user && !user.isAnonymous && firestore) {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         const adminDoc = await getDoc(adminDocRef);
@@ -28,8 +28,11 @@ export default function MainNav({
         setIsAdmin(false);
       }
     };
-    checkAdminStatus();
-  }, [user, firestore]);
+    // Don't check status until we know who the user is
+    if (!isUserLoading) {
+      checkAdminStatus();
+    }
+  }, [user, firestore, isUserLoading]);
 
   // Define all possible routes
   const routes = [
@@ -37,30 +40,34 @@ export default function MainNav({
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      role: 'citizen',
+      // Visible to everyone who is not an admin
+      visible: !isAdmin,
+    },
+     {
+      href: '/feedback',
+      label: 'Submit Feedback',
+      active: pathname === '/feedback',
+       // Visible to everyone who is not an admin
+      visible: !isAdmin,
     },
     {
       href: '/admin',
       label: 'Admin Dashboard',
       active: pathname === '/admin',
-      role: 'admin', // Only for admins
+      // Only for admins
+      visible: isAdmin,
     },
     {
       href: '/admin/feedback',
       label: 'Feedback',
       active: pathname === '/admin/feedback',
-      role: 'admin', // Only for admins
+      // Only for admins
+      visible: isAdmin,
     },
   ];
 
-  // Filter routes based on user role
-  const visibleRoutes = routes.filter(route => {
-    if (isAdmin) {
-      return route.role === 'admin';
-    }
-    // For anonymous or non-admin users
-    return route.role === 'citizen';
-  });
+  // Filter routes based on visibility
+  const visibleRoutes = routes.filter(route => route.visible);
 
   return (
     <nav

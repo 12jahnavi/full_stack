@@ -2,10 +2,9 @@
  * @fileoverview Firestore Security Rules for the Citizen Complaint System.
  *
  * Core Philosophy:
- * This ruleset allows anyone (including anonymous users) to create complaints.
+ * This ruleset allows anyone (including anonymous users) to create complaints and feedback.
  * Only authenticated administrators can read the full list of complaints and
- * modify their status. Citizen data is no longer stored, and complaints
- * are in a single top-level collection.
+ * modify their status.
  *
  */
 rules_version = '2';
@@ -51,16 +50,15 @@ service cloud.firestore {
     /**
      * @description Rule for the top-level /complaints/{complaintId} collection.
      * @path /complaints/{complaintId}
-     * @principle Anyone can create. Admins can read all and update status.
-     * Any user can query for their own complaints or resolved complaints.
      */
     match /complaints/{complaintId} {
-      // READ (get): Admins can read any single complaint. Any user (including anonymous) can read any single complaint.
-      allow get: if isAdmin() || request.auth != null;
+      // READ (get): Any user (including anonymous) can read any single complaint.
+      allow get: if request.auth != null;
       
-      // READ (list): Admins can list all. Any user (including anon) can query for resolved complaints.
+      // READ (list): Admins can list all. Any user (including anon) can *only* query for resolved complaints.
       allow list: if isAdmin() || 
-                      (request.query.where[0][0] == 'status' &&
+                      (request.auth != null && 
+                       request.query.where[0][0] == 'status' &&
                        request.query.where[0][1] == '==' &&
                        request.query.where[0][2] == 'Resolved');
 

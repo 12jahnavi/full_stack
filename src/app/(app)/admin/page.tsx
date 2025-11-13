@@ -31,27 +31,29 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
+    if (isUserLoading) return; // Wait until auth state is determined
+
+    if (!user) {
       router.push('/login');
       return;
     }
 
     const checkAdmin = async () => {
-        if (user && firestore) {
+        if (firestore) {
             const adminDoc = await getDoc(doc(firestore, 'admins', user.uid));
             if (adminDoc.exists()) {
                 setIsAdmin(true);
             } else {
-                // If not an admin, redirect away
-                router.push('/complaints/new');
+                router.push('/complaints/new'); // Redirect non-admins
             }
         }
+        setAuthChecked(true); // Mark that we have checked admin status
     };
-    if (user) {
-        checkAdmin();
-    }
+    
+    checkAdmin();
 
   }, [user, isUserLoading, router, firestore]);
 
@@ -60,10 +62,10 @@ export default function AdminDashboardPage() {
   const itemsPerPage = 10;
 
   const allComplaintsQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Only run query if the user is confirmed to be an admin.
-    if (!firestore || !isAdmin) return null;
+    // Only run query if auth has been checked and user is an admin
+    if (!firestore || !authChecked || !isAdmin) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
-  }, [firestore, isAdmin]);
+  }, [firestore, authChecked, isAdmin]);
 
   const { data: allComplaints, isLoading: isLoadingAll } = useCollection<Complaint>(allComplaintsQuery);
 
@@ -85,7 +87,8 @@ export default function AdminDashboardPage() {
     currentPage * itemsPerPage
   );
 
-  const isLoading = isUserLoading || isLoadingAll || !isAdmin;
+  // Show loading state until we've confirmed the user's admin status
+  const isLoading = isUserLoading || !authChecked || isLoadingAll;
 
   if (isLoading) {
     return <div className="h-24 text-center">Loading complaints...</div>;
