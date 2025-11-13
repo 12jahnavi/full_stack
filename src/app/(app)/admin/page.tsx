@@ -78,8 +78,8 @@ export default function AdminDashboardPage() {
     if (!queryTerm) return allComplaints;
     return allComplaints.filter(complaint =>
       complaint.title.toLowerCase().includes(queryTerm.toLowerCase()) ||
-      (complaint.name && complaint.name.toLowerCase().includes(queryTerm.toLowerCase())) ||
-      (complaint.email && complaint.email.toLowerCase().includes(queryTerm.toLowerCase())) ||
+      complaint.name.toLowerCase().includes(queryTerm.toLowerCase()) ||
+      complaint.email.toLowerCase().includes(queryTerm.toLowerCase()) ||
       complaint.category.toLowerCase().includes(queryTerm.toLowerCase())
     );
   }, [allComplaints, queryTerm]);
