@@ -80,7 +80,7 @@ service cloud.firestore {
      * @principle Citizens can create feedback for their own complaints. Admins can read all.
      */
     match /feedback/{feedbackId} {
-      // READ: Admins can read any feedback.
+      // READ: Admins can get any feedback document and list all feedback.
       allow read: if isAdmin();
       
       // WRITE (create): Any authenticated user (including anonymous) can create feedback,
