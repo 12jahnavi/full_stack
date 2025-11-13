@@ -14,25 +14,26 @@ import type { Complaint } from './definitions';
 type ComplaintFormData = Omit<Complaint, 'id' | 'date' | 'status' | 'citizenId'>;
 
 /**
- * Creates a new complaint document in Firestore.
+ * Creates a new complaint document in Firestore and returns its ID.
  * This is a client-side function.
  * @param firestore - The Firestore instance.
  * @param citizenId - The ID of the user submitting the complaint.
  * @param data - The complaint form data.
+ * @returns The ID of the newly created complaint document.
  */
 export async function createComplaint(
   firestore: Firestore,
   citizenId: string,
   data: ComplaintFormData
-) {
-  // All complaints now go into a single top-level collection
+): Promise<string> {
   const complaintsCollection = collection(firestore, 'complaints');
-  await addDoc(complaintsCollection, {
+  const newDocRef = await addDoc(complaintsCollection, {
     ...data,
     citizenId,
     status: 'Pending',
     date: serverTimestamp(),
   });
+  return newDocRef.id;
 }
 
 /**

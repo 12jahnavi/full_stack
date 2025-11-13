@@ -39,12 +39,6 @@ export default function MainNav({
       active: pathname === '/complaints/new',
       role: 'citizen',
     },
-     {
-      href: '/feedback',
-      label: 'Submit Feedback',
-      active: pathname === '/feedback',
-      role: 'citizen',
-    },
     {
       href: '/admin',
       label: 'Admin Dashboard',

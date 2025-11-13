@@ -88,15 +88,13 @@ export default function ComplaintForm() {
 
     setIsSubmitting(true);
     try {
-      await createComplaint(firestore, user.uid, data);
+      const newComplaintId = await createComplaint(firestore, user.uid, data);
       toast({
         title: 'Success!',
-        description: 'Your complaint has been submitted.',
+        description: 'Your complaint has been submitted. Redirecting...',
       });
-      // A citizen doesn't have a dashboard anymore, so we can maybe redirect to home
-      // or a success page. For now, let's just clear the form.
-       form.reset();
-      router.push('/');
+      // Redirect to the new complaint's detail page
+      router.push(`/complaints/${newComplaintId}`);
     } catch (error) {
       console.error(error);
       toast({
