@@ -27,7 +27,7 @@ export default function MainNav({
       href: '/complaints/new',
       label: 'New Complaint',
       active: pathname === '/complaints/new',
-      visible: true,
+      visible: !isAdmin,
     },
     {
       href: '/admin',
