@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/form';
 import { useFirebase, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   addDoc,
   collection,
@@ -41,7 +41,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Complaint, Feedback } from '@/lib/definitions';
+import type { Complaint } from '@/lib/definitions';
 import { Star } from 'lucide-react';
 import {
   analyzeCitizenFeedbackSentiment,
@@ -87,9 +87,10 @@ export default function StandaloneFeedbackPage() {
     },
   });
 
-  // This is the corrected query that only fetches resolved complaints.
   const resolvedComplaintsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // This query specifically asks for documents where status is 'Resolved',
+    // which matches the security rule and allows any user to fetch this list.
     return query(
       collection(firestore, 'complaints'),
       where('status', '==', 'Resolved')
