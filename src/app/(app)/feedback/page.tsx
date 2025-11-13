@@ -36,6 +36,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Star } from 'lucide-react';
 
 const FeedbackFormSchema = z.object({
