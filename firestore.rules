@@ -85,7 +85,10 @@ service cloud.firestore {
       
       // WRITE (create): Any authenticated user (including anonymous) can create feedback,
       // as long as the citizenId in the feedback matches their own UID.
-      allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
+      // The complaint must also exist.
+      allow create: if request.auth != null && 
+                      request.resource.data.citizenId == request.auth.uid &&
+                      exists(/databases/$(database)/documents/complaints/$(request.resource.data.complaintId));
 
       // WRITE (update, delete): No one can update or delete feedback.
       allow update, delete: if false;
