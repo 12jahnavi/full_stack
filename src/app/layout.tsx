@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
+import { UserNav } from '@/components/user-nav';
 
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -27,8 +28,11 @@ export default function RootLayout({
         )}
       >
         <FirebaseClientProvider>
-          {children}
-          <Toaster />
+            <div className="ml-auto flex items-center space-x-4 absolute top-4 right-4">
+                <UserNav />
+            </div>
+            {children}
+            <Toaster />
         </FirebaseClientProvider>
       </body>
     </html>

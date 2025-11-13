@@ -17,7 +17,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 export function UserNav() {
-  const { user, auth } = useFirebase();
+  const { user, auth, isUserLoading } = useFirebase();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -26,12 +26,21 @@ export function UserNav() {
     router.push('/login');
   };
 
-  // If there's no user, or the user is anonymous, don't show the user nav.
-  // Admins will be non-anonymous.
-  if (!user || user.isAnonymous) {
+  // While loading, show nothing to prevent flashes of content
+  if (isUserLoading) {
     return null;
   }
 
+  // If there's no user, or the user is anonymous, show the login button.
+  if (!user || user.isAnonymous) {
+    return (
+      <Button asChild>
+        <Link href="/login">Admin Login</Link>
+      </Button>
+    );
+  }
+
+  // If we have a signed-in, non-anonymous user, show the dropdown.
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
