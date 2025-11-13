@@ -88,7 +88,6 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         rating: data.rating,
         comments: data.comments,
         suggestions: data.suggestions,
-        resolvedBy: 'Admin', // Pre-filled
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
@@ -156,11 +155,6 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-             <div className="space-y-2">
-              <Label htmlFor="resolvedBy">Complaint Resolved By</Label>
-              <Input id="resolvedBy" defaultValue="Admin" readOnly />
-            </div>
-            
             <div className="space-y-2">
               <Label>Rating</Label>
               <div className="flex justify-start space-x-1">
@@ -218,7 +212,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
                 name="suggestions"
                 render={({ field }) => (
                 <FormItem>
-                    <Label>Suggestions</Label>
+                    <Label>Suggestions (Optional)</Label>
                     <FormControl>
                         <Textarea
                             id="suggestions"

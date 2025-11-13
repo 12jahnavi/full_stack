@@ -120,19 +120,17 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
             </CardContent>
           </Card>
 
-          {complaint.status === 'Resolved' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Submit Feedback</CardTitle>
-                <CardDescription>
-                  How was your experience with this resolution?
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FeedbackDialog complaint={complaint} />
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Submit Feedback</CardTitle>
+              <CardDescription>
+                Let us know what you think about this issue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FeedbackDialog complaint={complaint} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
