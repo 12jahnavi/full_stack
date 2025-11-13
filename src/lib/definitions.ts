@@ -28,10 +28,8 @@ export type Feedback = {
   complaintId: string;
   complaintTitle?: string;
   citizenId: string;
-  name: string;
-  email: string;
-  rating: number; // Allow any number for validation
-  description: string;
+  rating: number;
+  comments: string;
   date: Timestamp | any; // Allow for serverTimestamp
   sentiment?: string;
   sentimentConfidence?: number;

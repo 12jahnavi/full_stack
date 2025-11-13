@@ -28,7 +28,7 @@ export async function createComplaint(
 ): Promise<string> {
   const complaintsCollection = collection(firestore, 'complaints');
   const newDocRef = await addDoc(complaintsCollection, {
-    ...data,
+    ...data, // This includes name, email, phone, title, etc.
     citizenId,
     status: 'Pending',
     date: serverTimestamp(),

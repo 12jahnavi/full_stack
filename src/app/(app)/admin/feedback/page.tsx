@@ -111,7 +111,7 @@ export default function AdminFeedbackPage() {
             <TableRow>
               <TableHead>Complaint Title</TableHead>
               <TableHead>Rating</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead>Comments</TableHead>
               <TableHead>Sentiment</TableHead>
               <TableHead>Date</TableHead>
             </TableRow>
@@ -121,7 +121,7 @@ export default function AdminFeedbackPage() {
               paginatedFeedback.map(item => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
-                    {item.complaintTitle || item.complaintId.substring(0, 20)}
+                    {item.complaintTitle || 'N/A'}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
@@ -137,7 +137,7 @@ export default function AdminFeedbackPage() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{item.description}</TableCell>
+                  <TableCell className="max-w-xs truncate">{item.comments}</TableCell>
                   <TableCell>{getSentimentBadge(item.sentiment)}</TableCell>
                   <TableCell>
                     {item.date

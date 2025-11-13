@@ -38,9 +38,9 @@ import {
 
 const FeedbackSchema = z.object({
   rating: z.number().min(1, 'Please select a rating.'),
-  description: z
+  comments: z
     .string()
-    .min(10, 'Description must be at least 10 characters long.'),
+    .min(10, 'Comments must be at least 10 characters long.'),
 });
 
 type FeedbackFormValues = z.infer<typeof FeedbackSchema>;
@@ -55,7 +55,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
   const form = useForm<FeedbackFormValues>({
     resolver: zodResolver(FeedbackSchema),
     defaultValues: { 
-      description: '', 
+      comments: '', 
       rating: 0,
     },
   });
@@ -74,17 +74,15 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
     try {
       // 1. Analyze sentiment first, as it's an external call
       const sentimentResult: AnalyzeCitizenFeedbackSentimentOutput =
-        await analyzeCitizenFeedbackSentiment({ feedbackText: data.description });
+        await analyzeCitizenFeedbackSentiment({ feedbackText: data.comments });
 
       // 2. Prepare feedback data for Firestore
       const feedbackData = {
         complaintId: complaint.id,
-        complaintTitle: complaint.title, // Store the title with the feedback
+        complaintTitle: complaint.title,
         citizenId: user.uid,
-        name: complaint.name, // Carry over citizen's name
-        email: complaint.email, // Carry over citizen's email
         rating: data.rating,
-        description: data.description,
+        comments: data.comments,
         date: serverTimestamp(),
         sentiment: sentimentResult.sentiment,
         sentimentConfidence: sentimentResult.confidence,
@@ -96,7 +94,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         .then(() => {
           toast({
             title: 'Thank you!',
-            description: 'Your feedback has been submitted.',
+            description: 'Your feedback has been submitted successfully!',
           });
           setIsOpen(false);
           form.reset();
@@ -104,14 +102,12 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
           setIsSubmitting(false);
         })
         .catch(async (serverError) => {
-          // This is where the contextual error is created and emitted
           const permissionError = new FirestorePermissionError({
             path: feedbackCollection.path,
             operation: 'create',
             requestResourceData: feedbackData,
           });
           errorEmitter.emit('permission-error', permissionError);
-          // Also show a generic error to the user in the UI
           toast({
             variant: 'destructive',
             title: 'Submission Failed',
@@ -121,7 +117,6 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
         });
 
     } catch (error) {
-      // This will catch errors from the sentiment analysis call or other synchronous code
       console.error('Failed to submit feedback:', error);
       toast({
         variant: 'destructive',
@@ -153,7 +148,7 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label>Rating</Label>
+              <Label>Your Rating</Label>
               <div className="flex justify-start space-x-1">
                 {[1, 2, 3, 4, 5].map(star => (
                   <button
@@ -188,14 +183,14 @@ export function FeedbackDialog({ complaint }: { complaint: Complaint }) {
             
             <FormField
                 control={form.control}
-                name="description"
+                name="comments"
                 render={({ field }) => (
                 <FormItem>
-                    <Label>Description</Label>
+                    <Label>Comments</Label>
                     <FormControl>
                         <Textarea
-                            id="description"
-                            placeholder="Your description..."
+                            id="comments"
+                            placeholder="Your comments..."
                             {...field}
                         />
                     </FormControl>
