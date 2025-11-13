@@ -15,12 +15,14 @@ import {
   collection,
   query,
   orderBy,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
 import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
 import { ComplaintActions } from '@/components/complaint-actions';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 
@@ -28,22 +30,40 @@ export default function AdminDashboardPage() {
   const { firestore, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
+      return;
     }
-  }, [user, isUserLoading, router]);
+
+    const checkAdmin = async () => {
+        if (user && firestore) {
+            const adminDoc = await getDoc(doc(firestore, 'admins', user.uid));
+            if (adminDoc.exists()) {
+                setIsAdmin(true);
+            } else {
+                // If not an admin, redirect away
+                router.push('/complaints/new');
+            }
+        }
+    };
+    if (user) {
+        checkAdmin();
+    }
+
+  }, [user, isUserLoading, router, firestore]);
 
   const queryTerm = searchParams.get('query') || '';
   const currentPage = Number(searchParams.get('page')) || 1;
   const itemsPerPage = 10;
 
   const allComplaintsQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Only run query if user is logged in
-    if (!firestore || !user) return null;
+    // CRITICAL FIX: Only run query if the user is confirmed to be an admin.
+    if (!firestore || !isAdmin) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
-  }, [firestore, user]);
+  }, [firestore, isAdmin]);
 
   const { data: allComplaints, isLoading: isLoadingAll } = useCollection<Complaint>(allComplaintsQuery);
 
@@ -52,8 +72,8 @@ export default function AdminDashboardPage() {
     if (!queryTerm) return allComplaints;
     return allComplaints.filter(complaint =>
       complaint.title.toLowerCase().includes(queryTerm.toLowerCase()) ||
-      complaint.name.toLowerCase().includes(queryTerm.toLowerCase()) ||
-      complaint.email.toLowerCase().includes(queryTerm.toLowerCase()) ||
+      (complaint.name && complaint.name.toLowerCase().includes(queryTerm.toLowerCase())) ||
+      (complaint.email && complaint.email.toLowerCase().includes(queryTerm.toLowerCase())) ||
       complaint.category.toLowerCase().includes(queryTerm.toLowerCase())
     );
   }, [allComplaints, queryTerm]);
@@ -65,7 +85,7 @@ export default function AdminDashboardPage() {
     currentPage * itemsPerPage
   );
 
-  const isLoading = isUserLoading || isLoadingAll;
+  const isLoading = isUserLoading || isLoadingAll || !isAdmin;
 
   if (isLoading) {
     return <div className="h-24 text-center">Loading complaints...</div>;
