@@ -33,7 +33,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 
 const FeedbackSchema = z.object({
   complaintId: z.string().min(1, 'Please select a complaint.'),
-  name: z.string().min(4, 'Name must be more than 3 letters.').regex(/^[a-zA-Z\s]+$/, 'Name cannot contain numbers or special characters.'),
+  name: z.string().min(3, 'Name must be at least 3 characters.').regex(/^[a-zA-Z\s]+$/, 'Name cannot contain numbers or special characters.'),
   email: z.string().email('Please enter a valid email.'),
   rating: z.number().min(1, 'Please select a rating.'),
   comments: z
@@ -60,7 +60,6 @@ export default function StandaloneFeedbackPage() {
     },
   });
 
-  // CORRECTED QUERY: This now matches the security rules.
   const resolvedComplaintsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'complaints'), where('status', '==', 'Resolved'));

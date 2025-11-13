@@ -5,7 +5,6 @@
  * This ruleset allows anyone (including anonymous users) to create complaints.
  * Only authenticated administrators can read the full list of complaints and
  * modify their status. Citizen data is no longer stored, and complaints
-
  * are in a single top-level collection.
  *
  */
