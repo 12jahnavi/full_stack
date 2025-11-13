@@ -26,10 +26,13 @@ export type Complaint = {
 export type Feedback = {
   id: string;
   complaintId: string;
+  complaintTitle?: string;
   citizenId: string;
+  name: string;
+  email: string;
   rating: 1 | 2 | 3 | 4 | 5;
   comments: string;
-  date?: Timestamp; // Make date optional or ensure it's always set
+  date: Timestamp | any; // Allow for serverTimestamp
   sentiment?: string;
   sentimentConfidence?: number;
 };

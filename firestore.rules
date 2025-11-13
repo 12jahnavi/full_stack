@@ -58,20 +58,25 @@ service cloud.firestore {
       // READ (get): Admins can read any single complaint. Citizens can read their own.
       allow get: if isAdmin() || (request.auth != null && resource.data.citizenId == request.auth.uid);
       
-      // READ (list): Admins can list all. Citizens can only query by their email.
+      // READ (list): Admins can list all. Citizens can only query by their email or for resolved complaints.
       allow list: if isAdmin() || 
-                      (request.auth != null && 
-                       request.query.where.size() == 1 &&
-                       request.query.where[0].fieldPath == 'email' &&
-                       request.query.where[0].op == '==' &&
-                       request.query.where[0].value == request.auth.token.email);
+                      (request.auth != null &&
+                       ((request.query.where.size() == 1 &&
+                         request.query.where[0].fieldPath == 'email' &&
+                         request.query.where[0].op == '==' &&
+                         request.query.where[0].value == request.auth.token.email) ||
+                        (request.query.where.size() == 1 &&
+                         request.query.where[0].fieldPath == 'status' &&
+                         request.query.where[0].op == '==' &&
+                         request.query.where[0].value == 'Resolved')));
+
 
       // WRITE (create): Any user (including anonymous) can create a complaint.
       // We check that the citizenId in the document matches the user's uid, even if anonymous.
       allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
 
       // WRITE (update, delete): Only admins can update or delete any complaint.
-      allow update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
     
     /**
@@ -85,10 +90,11 @@ service cloud.firestore {
       
       // WRITE (create): Any authenticated user (including anonymous) can create feedback,
       // as long as the citizenId in the feedback matches their own UID.
-      // The complaint must also exist.
+      // The complaint must also exist and be resolved.
       allow create: if request.auth != null && 
                       request.resource.data.citizenId == request.auth.uid &&
-                      exists(/databases/$(database)/documents/complaints/$(request.resource.data.complaintId));
+                      exists(/databases/$(database)/documents/complaints/$(request.resource.data.complaintId)) &&
+                      get(/databases/$(database)/documents/complaints/$(request.resource.data.complaintId)).data.status == 'Resolved';
 
       // WRITE (update, delete): No one can update or delete feedback.
       allow update, delete: if false;
