@@ -4,7 +4,7 @@
  * Core Philosophy:
  * This ruleset allows anyone (including anonymous users) to create complaints and feedback.
  * Only authenticated administrators can read the full list of complaints and
- * modify their status. Citizens can view any single complaint.
+ * modify their status. Citizens can view any single complaint and list resolved complaints.
  *
  */
 rules_version = '2';
@@ -12,34 +12,37 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is from an authenticated (non-anonymous) user.
-     * @returns {boolean} True if the request is authenticated, false otherwise.
+     * @description Checks if the request is from an authenticated user (can be anonymous).
+     * @returns {boolean} True if the request has an auth object.
      */
-    function isSignedIn() {
-      return request.auth != null && request.auth.token.firebase.sign_in_provider != "anonymous";
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
     /**
      * @description Checks if the authenticated user is the owner of the resource.
+     * The user must be fully signed in (not anonymous).
      * @param {string} userId The user ID to compare against the authenticated user's UID.
      * @returns {boolean} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.token.firebase.sign_in_provider != "anonymous" && request.auth.uid == userId;
     }
 
     /**
      * @description Checks if the requesting user is an admin.
-     * Admins have their UID stored in the /admins collection.
+     * Admins have their UID stored in the /admins collection and must not be anonymous.
      * @returns {boolean} True if the user is an admin.
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return request.auth.token.firebase.sign_in_provider != "anonymous" && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Admins can manage their own profile.
     match /admins/{adminId} {
       allow read, write: if isOwner(adminId);
+      // Deny listing of admins for security.
+      allow list: if false;
     }
     
     // Citizens collection is no longer used, so deny all access.
@@ -53,14 +56,15 @@ service cloud.firestore {
      */
     match /complaints/{complaintId} {
       // READ (get): Any user (including anonymous) can read any single complaint.
-      allow get: if request.auth != null;
+      allow get: if isAuthenticated();
       
-      // READ (list): Only admins can list all complaints.
-      allow list: if isAdmin();
+      // READ (list): 
+      // - Admins can list all complaints.
+      // - Any user can list complaints if they are querying for 'Resolved' ones.
+      allow list: if isAdmin() || (isAuthenticated() && request.query.where.status == 'Resolved');
 
-      // WRITE (create): Any user (including anonymous) can create a complaint.
-      // We check that the citizenId in the document matches the user's uid, even if anonymous.
-      allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
+      // WRITE (create): Any authenticated user (including anonymous) can create a complaint.
+      allow create: if isAuthenticated() && request.resource.data.citizenId == request.auth.uid;
 
       // WRITE (update, delete): Only admins can update or delete any complaint.
       allow update, delete: if isAdmin();
@@ -77,7 +81,7 @@ service cloud.firestore {
       
       // WRITE (create): Any authenticated user (including anonymous) can create feedback,
       // as long as the citizenId in the feedback matches their own UID.
-      allow create: if request.auth != null && request.resource.data.citizenId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.citizenId == request.auth.uid;
 
       // WRITE (update, delete): No one can update or delete feedback.
       allow update, delete: if false;

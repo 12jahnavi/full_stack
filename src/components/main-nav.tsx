@@ -44,9 +44,16 @@ export default function MainNav({
       visible: true,
     },
     {
+      href: '/feedback',
+      label: 'Submit Feedback',
+      active: pathname === '/feedback',
+      // Visible to everyone
+      visible: true,
+    },
+    {
       href: '/admin',
       label: 'Admin Dashboard',
-      active: pathname.startsWith('/admin'),
+      active: pathname.startsWith('/admin') && !pathname.startsWith('/admin/feedback'),
       // Only for admins
       visible: isAdmin,
     },
