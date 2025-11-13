@@ -61,7 +61,7 @@ const FeedbackSchema = z.object({
 type FeedbackFormValues = z.infer<typeof FeedbackSchema>;
 
 export default function FeedbackPage() {
-  const { firestore, user } = useFirebase();
+  const { firestore, user, isUserLoading } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rating, setRating] = useState(0);
@@ -76,12 +76,13 @@ export default function FeedbackPage() {
   });
 
   const resolvedComplaintsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // CRITICAL: Don't run query until we have a user (even anonymous)
+    if (!firestore || isUserLoading) return null;
     return query(
       collection(firestore, 'complaints'),
       where('status', '==', 'Resolved')
     );
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: resolvedComplaints, isLoading: isLoadingComplaints } =
     useCollection<Complaint>(resolvedComplaintsQuery);
@@ -179,7 +180,7 @@ export default function FeedbackPage() {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      disabled={isLoadingComplaints || !resolvedComplaints}
+                      disabled={isLoadingComplaints || isUserLoading}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -187,7 +188,7 @@ export default function FeedbackPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isLoadingComplaints ? (
+                        {isLoadingComplaints || isUserLoading ? (
                           <SelectItem value="loading" disabled>
                             Loading complaints...
                           </SelectItem>
