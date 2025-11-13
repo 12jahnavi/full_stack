@@ -151,6 +151,8 @@ export default function StandaloneFeedbackPage() {
     setRating(rate);
     form.setValue('rating', rate, { shouldValidate: true });
   };
+  
+  const complaintIdValue = form.watch('complaintId');
 
   return (
     <>
@@ -271,7 +273,7 @@ export default function StandaloneFeedbackPage() {
                 />
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !complaintIdValue}>
               {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
             </Button>
           </CardFooter>
