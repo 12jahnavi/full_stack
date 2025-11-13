@@ -65,6 +65,7 @@ export default function AdminDashboardPage() {
   const itemsPerPage = 10;
 
   const allComplaintsQuery = useMemoFirebase(() => {
+    // CRITICAL: Do not run the query until we have confirmed the user is an admin.
     if (!firestore || !authChecked || !isAdmin) return null;
     return query(collection(firestore, 'complaints'), orderBy('date', 'desc'));
   }, [firestore, authChecked, isAdmin]);
