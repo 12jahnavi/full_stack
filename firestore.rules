@@ -59,8 +59,8 @@ service cloud.firestore {
       allow get: if isAuthenticated();
       
       // READ (list): 
-      // - Admins can list all complaints.
-      // - Any user can list complaints if they are querying for 'Resolved' ones.
+      // - Admins can list all complaints without restriction.
+      // - ANY authenticated user can list complaints IF the query is for resolved complaints.
       allow list: if isAdmin() || (isAuthenticated() && request.query.where.status == 'Resolved');
 
       // WRITE (create): Any authenticated user (including anonymous) can create a complaint.
