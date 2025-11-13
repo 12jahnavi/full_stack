@@ -52,7 +52,7 @@ service cloud.firestore {
      * @description Rule for the top-level /complaints/{complaintId} collection.
      * @path /complaints/{complaintId}
      * @principle Anyone can create. Admins can read all and update status.
-     * Citizens can query for their own complaints.
+     * Any user can query for their own complaints or resolved complaints.
      */
     match /complaints/{complaintId} {
       // READ (get): Admins can read any single complaint. Citizens can read their own.
@@ -75,7 +75,7 @@ service cloud.firestore {
     /**
      * @description Rule for the top-level /feedback/{feedbackId} collection.
      * @path /feedback/{feedbackId}
-     * @principle Citizens can create feedback for their own complaints. Admins can read all.
+     * @principle Citizens can create feedback for resolved complaints. Admins can read all.
      */
     match /feedback/{feedbackId} {
       // READ: Admins can get any feedback document and list all feedback.

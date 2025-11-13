@@ -30,7 +30,7 @@ export type Feedback = {
   citizenId: string;
   name: string;
   email: string;
-  rating: 1 | 2 | 3 | 4 | 5;
+  rating: number; // Allow any number for validation
   comments: string;
   date: Timestamp | any; // Allow for serverTimestamp
   sentiment?: string;

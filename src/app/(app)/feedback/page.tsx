@@ -5,15 +5,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,11 +119,6 @@ export default function StandaloneFeedbackPage() {
             requestResourceData: feedbackData,
           });
           errorEmitter.emit('permission-error', permissionError);
-          toast({
-            variant: 'destructive',
-            title: 'Submission Failed',
-            description: 'Could not submit your feedback due to a permission issue.',
-          });
         }).finally(() => {
             setIsSubmitting(false);
         });
