@@ -2,9 +2,9 @@
  * @fileoverview Firestore Security Rules for the Citizen Complaint System.
  *
  * Core Philosophy:
- * This ruleset allows anyone (including anonymous users) to create complaints and feedback.
+ * This ruleset allows anyone (including anonymous users) to create complaints.
  * Only authenticated administrators can read the full list of complaints and
- * modify their status. Citizens can view any single complaint and list resolved complaints.
+ * modify their status. Citizens can view any single complaint.
  *
  */
 rules_version = '2';
@@ -60,31 +60,13 @@ service cloud.firestore {
       
       // READ (list): 
       // - Admins can list all complaints without restriction.
-      // - ANY authenticated user can list complaints IF the query is for resolved complaints.
-      allow list: if isAdmin() || (isAuthenticated() && request.query.where.status == 'Resolved');
+      allow list: if isAdmin();
 
       // WRITE (create): Any authenticated user (including anonymous) can create a complaint.
       allow create: if isAuthenticated() && request.resource.data.citizenId == request.auth.uid;
 
       // WRITE (update, delete): Only admins can update or delete any complaint.
       allow update, delete: if isAdmin();
-    }
-    
-    /**
-     * @description Rule for the top-level /feedback/{feedbackId} collection.
-     * @path /feedback/{feedbackId}
-     * @principle Citizens can create feedback for any complaint. Admins can read all.
-     */
-    match /feedback/{feedbackId} {
-      // READ: Admins can get any feedback document and list all feedback.
-      allow read: if isAdmin();
-      
-      // WRITE (create): Any authenticated user (including anonymous) can create feedback,
-      // as long as the citizenId in the feedback matches their own UID.
-      allow create: if isAuthenticated() && request.resource.data.citizenId == request.auth.uid;
-
-      // WRITE (update, delete): No one can update or delete feedback.
-      allow update, delete: if false;
     }
   }
 }

@@ -17,7 +17,6 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import type { Complaint } from '@/lib/definitions';
-import { FeedbackDialog } from '@/components/feedback-dialog';
 
 
 export default function ComplaintDetailPage({ params }: { params: { id: string } }) {
@@ -117,18 +116,6 @@ export default function ComplaintDetailPage({ params }: { params: { id: string }
                   {complaint.priority} Priority
                 </Badge>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Feedback</CardTitle>
-              <CardDescription>
-                Let us know what you think about this issue.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FeedbackDialog complaint={complaint} />
             </CardContent>
           </Card>
         </div>

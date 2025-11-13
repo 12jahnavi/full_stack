@@ -131,49 +131,6 @@
         "date",
         "status"
       ]
-    },
-    "Feedback": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Feedback",
-      "type": "object",
-      "description": "Represents feedback submitted by a citizen for a complaint.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Feedback entity."
-        },
-        "citizenId": {
-          "type": "string",
-          "description": "The UID of the citizen who submitted the feedback."
-        },
-        "complaintId": {
-          "type": "string",
-          "description": "Reference to Complaint. (Relationship: Complaint 1:N Feedback)"
-        },
-        "rating": {
-          "type": "number",
-          "description": "Rating given by the citizen (1-5)."
-        },
-        "comments": {
-          "type": "string",
-          "description": "Comments provided by the citizen."
-        },
-        "sentiment": {
-          "type": "string",
-          "description": "Sentiment of the feedback, determined by AI."
-        },
-        "sentimentConfidence": {
-          "type": "number",
-          "description": "AI confidence in the sentiment analysis."
-        }
-      },
-      "required": [
-        "id",
-        "citizenId",
-        "complaintId",
-        "rating",
-        "comments"
-      ]
     }
   },
   "auth": {
@@ -224,16 +181,6 @@
             "$ref": "#/backend/entities/Complaint"
           },
           "description": "Stores all complaints in a single top-level collection."
-        }
-      },
-      {
-        "path": "/feedback/{feedbackId}",
-        "definition": {
-          "entityName": "Feedback",
-          "schema": {
-            "$ref": "#/backend/entities/Feedback"
-          },
-          "description": "Stores all feedback in a single top-level collection."
         }
       }
     ]

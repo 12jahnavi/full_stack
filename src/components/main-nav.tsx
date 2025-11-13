@@ -14,7 +14,6 @@ export default function MainNav({
   const { user, isUserLoading } = useFirebase();
 
   // Show admin links if a user is logged in (not anonymous).
-  // The individual admin pages will handle the final redirection if the user is not a real admin.
   const isAdmin = !isUserLoading && user && !user.isAnonymous;
 
   const routes = [
@@ -25,21 +24,9 @@ export default function MainNav({
       visible: true,
     },
     {
-      href: '/feedback',
-      label: 'Submit Feedback',
-      active: pathname === '/feedback',
-      visible: true,
-    },
-    {
       href: '/admin',
       label: 'Admin Dashboard',
-      active: pathname.startsWith('/admin') && !pathname.startsWith('/admin/feedback'),
-      visible: isAdmin,
-    },
-    {
-      href: '/admin/feedback',
-      label: 'Feedback',
-      active: pathname === '/admin/feedback',
+      active: pathname.startsWith('/admin'),
       visible: isAdmin,
     },
   ];
