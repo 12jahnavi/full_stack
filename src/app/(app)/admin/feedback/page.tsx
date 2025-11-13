@@ -90,7 +90,7 @@ export default function AdminFeedbackPage() {
   const isLoading = isUserLoading || !authChecked || isLoadingFeedback;
 
   if (isLoading) {
-    return <div className="h-24 text-center">Loading Feedback...</div>;
+    return <div className="h-24 text-center">Verifying administrator access...</div>;
   }
 
   return (
@@ -139,7 +139,7 @@ export default function AdminFeedbackPage() {
                   <TableCell>{getSentimentBadge(item.sentiment)}</TableCell>
                   <TableCell>
                     {item.date
-                      ? new Date(item.date.seconds * 1000).toLocaleDateString()
+                      ? new Date((item.date as Timestamp).seconds * 1000).toLocaleDateString()
                       : 'No date'}
                   </TableCell>
                 </TableRow>

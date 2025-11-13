@@ -17,6 +17,7 @@ import {
   orderBy,
   doc,
   getDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import type { Complaint } from '@/lib/definitions';
 import { useSearchParams } from 'next/navigation';
@@ -27,7 +28,7 @@ import { useRouter } from 'next/navigation';
 
 
 export default function AdminDashboardPage() {
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { firestore, user, auth, isUserLoading } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -57,7 +58,7 @@ export default function AdminDashboardPage() {
     
     checkAdmin();
 
-  }, [user, isUserLoading, router, firestore]);
+  }, [user, isUserLoading, router, firestore, auth]);
 
   const queryTerm = searchParams.get('query') || '';
   const currentPage = Number(searchParams.get('page')) || 1;
@@ -91,7 +92,7 @@ export default function AdminDashboardPage() {
   const isLoading = isUserLoading || !authChecked || isLoadingAll;
 
   if (isLoading) {
-    return <div className="h-24 text-center">Loading complaints...</div>;
+    return <div className="h-24 text-center">Verifying administrator access...</div>;
   }
 
   return (
@@ -137,7 +138,7 @@ export default function AdminDashboardPage() {
                     <ComplaintStatusBadge status={complaint.status} />
                   </TableCell>
                   <TableCell>
-                    {new Date(complaint.date.seconds * 1000).toLocaleDateString()}
+                    {new Date((complaint.date as Timestamp).seconds * 1000).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     <ComplaintActions complaint={complaint} />
