@@ -25,6 +25,7 @@ import { ComplaintActions } from '@/components/complaint-actions';
 import ComplaintStatusBadge from '@/components/complaint-status-badge';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Search } from '@/components/search';
 
 
 export default function AdminDashboardPage() {
@@ -105,6 +106,7 @@ export default function AdminDashboardPage() {
             View and manage all citizen complaints.
           </p>
         </div>
+        <Search />
       </div>
       <div className="rounded-md border">
         <Table>

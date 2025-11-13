@@ -1,7 +1,6 @@
 
 import MainNav from '@/components/main-nav';
 import { UserNav } from '@/components/user-nav';
-import { Search } from '@/components/search';
 import { FirebaseClientProvider, AnonymousSignInProvider } from '@/firebase';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +12,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 items-center px-4 container mx-auto">
             <MainNav />
             <div className="ml-auto flex items-center space-x-4">
-              <Search />
               <UserNav />
             </div>
           </div>
